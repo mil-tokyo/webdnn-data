@@ -1,0 +1,12 @@
+@import "../definitions/color";
+
+.PlayGround {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f8f8f8;
+  position: relative;
+  background: $c-key-dark;
+  box-shadow: 0 3px 30px rgba(0, 0, 0, 0.3);
+  margin: 0 auto;
+}

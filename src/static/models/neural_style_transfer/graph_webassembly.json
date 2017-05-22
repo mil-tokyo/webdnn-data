@@ -1,0 +1,609 @@
+{
+  "weight_allocation": {
+    "total_size": 1820035,
+    "allocation": {
+      "ConstantVariable121": {
+        "name": "ConstantVariable121",
+        "offset": 0,
+        "size": 32
+      },
+      "ConstantVariable122": {
+        "name": "ConstantVariable122",
+        "offset": 32,
+        "size": 128
+      },
+      "ConstantVariable67": {
+        "name": "ConstantVariable67",
+        "offset": 160,
+        "size": 147456
+      },
+      "ConstantVariable83": {
+        "name": "ConstantVariable83",
+        "offset": 147616,
+        "size": 64
+      },
+      "ConstantVariable51": {
+        "name": "ConstantVariable51",
+        "offset": 147680,
+        "size": 147456
+      },
+      "ConstantVariable119": {
+        "name": "ConstantVariable119",
+        "offset": 295136,
+        "size": 64
+      },
+      "ConstantVariable84": {
+        "name": "ConstantVariable84",
+        "offset": 295200,
+        "size": 32
+      },
+      "ConstantVariable37": {
+        "name": "ConstantVariable37",
+        "offset": 295232,
+        "size": 32
+      },
+      "ConstantVariable96": {
+        "name": "ConstantVariable96",
+        "offset": 295264,
+        "size": 128
+      },
+      "ConstantVariable129": {
+        "name": "ConstantVariable129",
+        "offset": 295392,
+        "size": 128
+      },
+      "ConstantVariable85": {
+        "name": "ConstantVariable85",
+        "offset": 295520,
+        "size": 3
+      },
+      "ConstantVariable38": {
+        "name": "ConstantVariable38",
+        "offset": 295523,
+        "size": 7776
+      },
+      "ConstantVariable69": {
+        "name": "ConstantVariable69",
+        "offset": 303299,
+        "size": 147456
+      },
+      "ConstantVariable94": {
+        "name": "ConstantVariable94",
+        "offset": 450755,
+        "size": 64
+      },
+      "ConstantVariable53": {
+        "name": "ConstantVariable53",
+        "offset": 450819,
+        "size": 147456
+      },
+      "ConstantVariable92": {
+        "name": "ConstantVariable92",
+        "offset": 598275,
+        "size": 32
+      },
+      "ConstantVariable39": {
+        "name": "ConstantVariable39",
+        "offset": 598307,
+        "size": 32768
+      },
+      "ConstantVariable127": {
+        "name": "ConstantVariable127",
+        "offset": 631075,
+        "size": 128
+      },
+      "ConstantVariable130": {
+        "name": "ConstantVariable130",
+        "offset": 631203,
+        "size": 128
+      },
+      "ConstantVariable40": {
+        "name": "ConstantVariable40",
+        "offset": 631331,
+        "size": 64
+      },
+      "ConstantVariable97": {
+        "name": "ConstantVariable97",
+        "offset": 631395,
+        "size": 128
+      },
+      "ConstantVariable124": {
+        "name": "ConstantVariable124",
+        "offset": 631523,
+        "size": 128
+      },
+      "ConstantVariable41": {
+        "name": "ConstantVariable41",
+        "offset": 631651,
+        "size": 131072
+      },
+      "ConstantVariable26": {
+        "name": "ConstantVariable26",
+        "offset": 762723,
+        "size": 131072
+      },
+      "ConstantVariable95": {
+        "name": "ConstantVariable95",
+        "offset": 893795,
+        "size": 64
+      },
+      "ConstantVariable42": {
+        "name": "ConstantVariable42",
+        "offset": 893859,
+        "size": 128
+      },
+      "ConstantVariable93": {
+        "name": "ConstantVariable93",
+        "offset": 893987,
+        "size": 32
+      },
+      "ConstantVariable43": {
+        "name": "ConstantVariable43",
+        "offset": 894019,
+        "size": 147456
+      },
+      "ConstantVariable75": {
+        "name": "ConstantVariable75",
+        "offset": 1041475,
+        "size": 147456
+      },
+      "ConstantVariable59": {
+        "name": "ConstantVariable59",
+        "offset": 1188931,
+        "size": 147456
+      },
+      "ConstantVariable125": {
+        "name": "ConstantVariable125",
+        "offset": 1336387,
+        "size": 128
+      },
+      "ConstantVariable131": {
+        "name": "ConstantVariable131",
+        "offset": 1336515,
+        "size": 128
+      },
+      "ConstantVariable45": {
+        "name": "ConstantVariable45",
+        "offset": 1336643,
+        "size": 147456
+      },
+      "ConstantVariable126": {
+        "name": "ConstantVariable126",
+        "offset": 1484099,
+        "size": 128
+      },
+      "ConstantVariable61": {
+        "name": "ConstantVariable61",
+        "offset": 1484227,
+        "size": 147456
+      },
+      "ConstantVariable77": {
+        "name": "ConstantVariable77",
+        "offset": 1631683,
+        "size": 147456
+      },
+      "ConstantVariable31": {
+        "name": "ConstantVariable31",
+        "offset": 1779139,
+        "size": 32768
+      },
+      "ConstantVariable120": {
+        "name": "ConstantVariable120",
+        "offset": 1811907,
+        "size": 32
+      },
+      "ConstantVariable118": {
+        "name": "ConstantVariable118",
+        "offset": 1811939,
+        "size": 64
+      },
+      "ConstantVariable32": {
+        "name": "ConstantVariable32",
+        "offset": 1812003,
+        "size": 7776
+      },
+      "ConstantVariable128": {
+        "name": "ConstantVariable128",
+        "offset": 1819779,
+        "size": 128
+      },
+      "ConstantVariable123": {
+        "name": "ConstantVariable123",
+        "offset": 1819907,
+        "size": 128
+      }
+    }
+  },
+  "weight_encoding": "eightbit",
+  "variable_allocation": {
+    "total_size": 7686144,
+    "allocation": {
+      "Variable64": {
+        "name": "Variable64",
+        "offset": 304128,
+        "size": 221184
+      },
+      "Variable13": {
+        "name": "Variable13",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable93": {
+        "name": "Variable93",
+        "offset": 304128,
+        "size": 1990656
+      },
+      "Variable54": {
+        "name": "Variable54",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable59": {
+        "name": "Variable59",
+        "offset": 304128,
+        "size": 221184
+      },
+      "Variable8": {
+        "name": "Variable8",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable101": {
+        "name": "Variable101",
+        "offset": 304128,
+        "size": 1990656
+      },
+      "Variable3": {
+        "name": "Variable3",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable44": {
+        "name": "Variable44",
+        "offset": 2515968,
+        "size": 221184
+      },
+      "Variable49": {
+        "name": "Variable49",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable75": {
+        "name": "Variable75",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable34": {
+        "name": "Variable34",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable95": {
+        "name": "Variable95",
+        "offset": 525312,
+        "size": 1990656
+      },
+      "Variable65": {
+        "name": "Variable65",
+        "offset": 304128,
+        "size": 221184
+      },
+      "Variable39": {
+        "name": "Variable39",
+        "offset": 304128,
+        "size": 221184
+      },
+      "Variable70": {
+        "name": "Variable70",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable55": {
+        "name": "Variable55",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable24": {
+        "name": "Variable24",
+        "offset": 2515968,
+        "size": 221184
+      },
+      "Variable29": {
+        "name": "Variable29",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable60": {
+        "name": "Variable60",
+        "offset": 304128,
+        "size": 221184
+      },
+      "Variable76": {
+        "name": "Variable76",
+        "offset": 82944,
+        "size": 82944
+      },
+      "Variable14": {
+        "name": "Variable14",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable105": {
+        "name": "Variable105",
+        "offset": 525312,
+        "size": 1990656
+      },
+      "Variable45": {
+        "name": "Variable45",
+        "offset": 2515968,
+        "size": 221184
+      },
+      "Variable83": {
+        "name": "Variable83",
+        "offset": 967680,
+        "size": 3538944
+      },
+      "Variable50": {
+        "name": "Variable50",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable19": {
+        "name": "Variable19",
+        "offset": 304128,
+        "size": 221184
+      },
+      "Variable71": {
+        "name": "Variable71",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable9": {
+        "name": "Variable9",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable35": {
+        "name": "Variable35",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable97": {
+        "name": "Variable97",
+        "offset": 525312,
+        "size": 1990656
+      },
+      "Variable61": {
+        "name": "Variable61",
+        "offset": 304128,
+        "size": 221184
+      },
+      "Variable66": {
+        "name": "Variable66",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable4": {
+        "name": "Variable4",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable40": {
+        "name": "Variable40",
+        "offset": 304128,
+        "size": 221184
+      },
+      "Variable87": {
+        "name": "Variable87",
+        "offset": 525312,
+        "size": 1990656
+      },
+      "Variable56": {
+        "name": "Variable56",
+        "offset": 304128,
+        "size": 221184
+      },
+      "Variable25": {
+        "name": "Variable25",
+        "offset": 2515968,
+        "size": 221184
+      },
+      "Variable30": {
+        "name": "Variable30",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable51": {
+        "name": "Variable51",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable77": {
+        "name": "Variable77",
+        "offset": 82944,
+        "size": 82944
+      },
+      "Variable46": {
+        "name": "Variable46",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable20": {
+        "name": "Variable20",
+        "offset": 304128,
+        "size": 221184
+      },
+      "Variable41": {
+        "name": "Variable41",
+        "offset": 2515968,
+        "size": 221184
+      },
+      "Variable72": {
+        "name": "Variable72",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable36": {
+        "name": "Variable36",
+        "offset": 304128,
+        "size": 221184
+      },
+      "Variable67": {
+        "name": "Variable67",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable31": {
+        "name": "Variable31",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable15": {
+        "name": "Variable15",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable85": {
+        "name": "Variable85",
+        "offset": 525312,
+        "size": 1769472
+      },
+      "Variable26": {
+        "name": "Variable26",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable78": {
+        "name": "Variable78",
+        "offset": 82944,
+        "size": 82944
+      },
+      "Variable10": {
+        "name": "Variable10",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable21": {
+        "name": "Variable21",
+        "offset": 2515968,
+        "size": 221184
+      },
+      "Variable5": {
+        "name": "Variable5",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable16": {
+        "name": "Variable16",
+        "offset": 304128,
+        "size": 221184
+      },
+      "Variable0": {
+        "name": "Variable0",
+        "offset": 0,
+        "size": 82944
+      },
+      "Variable73": {
+        "name": "Variable73",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable107": {
+        "name": "Variable107",
+        "offset": 525312,
+        "size": 1769472
+      },
+      "Variable99": {
+        "name": "Variable99",
+        "offset": 304128,
+        "size": 1990656
+      },
+      "Variable68": {
+        "name": "Variable68",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable11": {
+        "name": "Variable11",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable6": {
+        "name": "Variable6",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable91": {
+        "name": "Variable91",
+        "offset": 304128,
+        "size": 1990656
+      },
+      "Variable1": {
+        "name": "Variable1",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable81": {
+        "name": "Variable81",
+        "offset": 967680,
+        "size": 6718464
+      },
+      "Variable103": {
+        "name": "Variable103",
+        "offset": 525312,
+        "size": 1990656
+      },
+      "Variable12": {
+        "name": "Variable12",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable109": {
+        "name": "Variable109",
+        "offset": 967680,
+        "size": 3538944
+      },
+      "Variable74": {
+        "name": "Variable74",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable7": {
+        "name": "Variable7",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable89": {
+        "name": "Variable89",
+        "offset": 525312,
+        "size": 1990656
+      },
+      "Variable80": {
+        "name": "Variable80",
+        "offset": 82944,
+        "size": 82944
+      },
+      "Variable69": {
+        "name": "Variable69",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable111": {
+        "name": "Variable111",
+        "offset": 967680,
+        "size": 6718464
+      },
+      "Variable2": {
+        "name": "Variable2",
+        "offset": 82944,
+        "size": 884736
+      }
+    }
+  },
+  "inputs": [
+    "Variable0"
+  ],
+  "outputs": [
+    "Variable80"
+  ]
+}

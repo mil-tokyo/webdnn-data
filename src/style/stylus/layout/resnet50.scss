@@ -1,0 +1,39 @@
+$c-example-body-background: #000;
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  overflow: hidden;
+  background: $c-example-body-background;
+  color: #fff;
+  box-sizing: border-box;
+  font-family: sans-serif;
+  font-weight: 300;
+
+  main {
+    flex: 1 1;
+    overflow: auto;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+
+    .Left {
+      background: rgb(28, 29, 35);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+
+      .Spacer {
+        flex: 1;
+      }
+    }
+
+    .Right {
+      flex: 1;
+      padding: 16px;
+    }
+  }
+}

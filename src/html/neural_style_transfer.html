@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>mil-web-dnn</title>
+    <script src="./inflate.min.js"></script>
+    <script src="./webcam.js"></script>
+    <script src="./webdnn.js"></script>
+</head>
+<body>
+
+<div class="LaunchView" id="launchView">
+    <button id="runAppButton" class="Primary">
+        <svg height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 5v14l11-7z"/>
+        </svg>
+        <span>Run</span>
+    </button>
+</div>
+
+<div class="InitializingView" id="initializingView">
+    <span class="InitializingView-Message">Initializing...</span>
+    <div class="InitializingView-ProgressBar ProgressBar">
+        <div class="ProgressBar-Inner"></div>
+    </div>
+</div>
+
+<main>
+    <canvas id="inputCanvas" width="192" height="144" style="position: absolute; top: -999px"></canvas>
+
+    <div class="Top">
+        <div class="Left">
+            <div style="margin-bottom: 32px">
+                <div class="Tip">Contents</div>
+                <div id="CameraContainer"></div>
+            </div>
+            <div>
+                <div class="Tip">Style</div>
+                <img style="display: block; width: 192px; height: 144px;" src="/assets/neural_style_transfer-style.jpg">
+            </div>
+        </div>
+
+        <div class="Right">
+            <div class="Tip">Output</div>
+            <div id="OutputCanvasContainer">
+                <canvas id="outputCanvas" width="192" height="144"
+                        style="position: relative; display: block; width: 468px; height: 351px;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="Bottom">
+        <span style="flex: 1;">message is here</span>
+        <button class="Primary" id="runButton" disabled>Run</button>
+    </div>
+</main>
+
+
+</body>
+</html>

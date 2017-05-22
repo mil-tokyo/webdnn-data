@@ -1,0 +1,5616 @@
+{
+  "kernel_source": "\n#include <metal_stdlib>\nusing namespace metal;\n\n\n\nkernel void im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f(const device float *param_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          ushort index_thread[[thread_position_in_threadgroup]],\n                          ushort index_group[[threadgroup_position_in_grid]])\n{\n    const device float *im = data_buffer + meta_buffer[0];\n    device float *col = data_buffer + meta_buffer[1];\n\n    // const int N = meta_buffer[2];\n    const int C1 = meta_buffer[3];\n    const int H1 = meta_buffer[4];\n    const int W1 = meta_buffer[5];\n    const int H2 = meta_buffer[6];\n    const int W2 = meta_buffer[7];\n    const int KH = meta_buffer[8];\n    const int KW = meta_buffer[9];\n    const int SH = meta_buffer[10];\n    const int SW = meta_buffer[11];\n    const int PH = meta_buffer[12];\n    const int PW = meta_buffer[13];\n\n    const int H1P = H1 + 2 * PH;\n    const int W1P = W1 + 2 * PW;\n\n    const int w1 = (index_group % W1P) - PW;\n    const int h1 = (index_group / W1P % H1P) - PH;\n    const int  n = index_group / W1P / H1P;\n\n    for (int c1 = index_thread; c1 < C1; c1 += 64) {\n        const float v = (h1 < 0 || h1 >= H1 || w1 < 0 || w1 >= W1) ? 0 : im[((n * H1 + h1) * W1 + w1) * C1 + c1];\n\n        for (int kh = (h1 + PH) % SH; kh < KH; kh += SH) {\n            const int h2 = (h1 + PH - kh) / SH;\n            if (h2 < 0 || h2 >= H2) continue;\n\n            for (int kw = (w1 + PW) % SW; kw < KW; kw += SW) {\n                const int w2 = (w1 + PW - kw) / SW;\n                if (w2 < 0 || w2 >= W2) continue;\n\n                col[((((n * H2 + h2) * W2 + w2) * KH + kh) * KW + kw) * C1 + c1] = v;\n            }\n        }\n    }\n}\n\n\n#define ENABLE_SGEMM_BIAS 1\n\nkernel void sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac(const device float *weight_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          ushort index[[thread_index_in_threadgroup]],\n                          ushort2 group_position[[threadgroup_position_in_grid]])\n{\n    device float *C = data_buffer + meta_buffer[2];\n\n    const device float *load_target = (index & 32) \n        ? (weight_buffer + meta_buffer[1]) \n        : (data_buffer + meta_buffer[0]);\n\n    const int M = meta_buffer[4];\n    const int N = meta_buffer[5];\n    const int K = meta_buffer[6];\n\n    threadgroup float4 shared4[32 * 8 * 2];\n\n    const int stride_k = (index & 32) ? N : 1;\n    const int stride_mn = (index & 32) ? 1 : K;\n\n    const int m_offset = index & 7;\n    const int n_offset = index >> 3;\n\n    const int mn_load_offset = ((index & 32) ? group_position.y : group_position.x) * 64 + (index & 15) * 4;\n    const int k_load_offset = ((index & 16) ? 1 : 0);\n\n    int track0 = mn_load_offset * stride_mn + (k_load_offset + 0) * stride_k;\n    int track2 = track0 + 2 * stride_k;\n    int track4 = track0 + 4 * stride_k;\n    int track6 = track0 + 6 * stride_k;\n\n    const int max_MN = (index & 32) ? N : M;\n\n    int shared_offset4 = ((index & 32) ? 16 : 0) + k_load_offset * 32 + (index & 15);\n    int read_A_offset4 = m_offset * 2;\n    int read_B_offset4 = n_offset * 2 + 16;\n\n    float4 result[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};\n    int k = 0;\n\n    while (k < K)\n    {\n        {\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n            k += 2;\n        }\n\n        threadgroup_barrier(mem_flags::mem_threadgroup);\n\n        {\n            for (int k_sub = 0; k_sub < 8; k_sub++)\n            {\n                float4 a00 = shared4[32 * k_sub + read_A_offset4 + 0];\n                float4 a01 = shared4[32 * k_sub + read_A_offset4 + 1];\n                float4 b00 = shared4[32 * k_sub + read_B_offset4 + 0];\n                float4 b01 = shared4[32 * k_sub + read_B_offset4 + 1];\n\n                result[4][0]  += b00[0] * a00[2];\n                result[4][1]  += b00[1] * a00[2];\n                result[0][1]  += b00[1] * a00[0];\n                result[0][0]  += b00[0] * a00[0];\n                result[6][0]  += b00[0] * a00[3];\n                result[6][1]  += b00[1] * a00[3];\n                result[2][1]  += b00[1] * a00[1];\n                result[2][0]  += b00[0] * a00[1];\n                result[12][0] += b00[0] * a01[2];\n                result[12][1] += b00[1] * a01[2];\n                result[8][1]  += b00[1] * a01[0];\n                result[8][0]  += b00[0] * a01[0];\n                result[14][0] += b00[0] * a01[3];\n                result[14][1] += b00[1] * a01[3];\n                result[10][1] += b00[1] * a01[1];\n                result[10][0] += b00[0] * a01[1];\n\n                result[14][2] += b00[2] * a01[3];\n                result[14][3] += b00[3] * a01[3];\n                result[10][3] += b00[3] * a01[1];\n                result[10][2] += b00[2] * a01[1];\n                result[12][2] += b00[2] * a01[2];\n                result[12][3] += b00[3] * a01[2];\n                result[8][3]  += b00[3] * a01[0];\n                result[8][2]  += b00[2] * a01[0];\n                result[6][2]  += b00[2] * a00[3];\n                result[6][3]  += b00[3] * a00[3];\n                result[2][3]  += b00[3] * a00[1];\n                result[2][2]  += b00[2] * a00[1];\n                result[4][2]  += b00[2] * a00[2];\n                result[4][3]  += b00[3] * a00[2];\n                result[0][3]  += b00[3] * a00[0];\n                result[0][2]  += b00[2] * a00[0];\n\n                result[5][0]  += b01[0] * a00[2];\n                result[5][1]  += b01[1] * a00[2];\n                result[1][1]  += b01[1] * a00[0];\n                result[1][0]  += b01[0] * a00[0];\n                result[7][0]  += b01[0] * a00[3];\n                result[7][1]  += b01[1] * a00[3];\n                result[3][1]  += b01[1] * a00[1];\n                result[3][0]  += b01[0] * a00[1];\n                result[13][0] += b01[0] * a01[2];\n                result[13][1] += b01[1] * a01[2];\n                result[9][1]  += b01[1] * a01[0];\n                result[9][0]  += b01[0] * a01[0];\n                result[15][0] += b01[0] * a01[3];\n                result[15][1] += b01[1] * a01[3];\n                result[11][1] += b01[1] * a01[1];\n                result[11][0] += b01[0] * a01[1];\n\n                result[15][2] += b01[2] * a01[3];\n                result[15][3] += b01[3] * a01[3];\n                result[11][3] += b01[3] * a01[1];\n                result[11][2] += b01[2] * a01[1];\n                result[13][2] += b01[2] * a01[2];\n                result[13][3] += b01[3] * a01[2];\n                result[9][3]  += b01[3] * a01[0];\n                result[9][2]  += b01[2] * a01[0];\n                result[7][2]  += b01[2] * a00[3];\n                result[7][3]  += b01[3] * a00[3];\n                result[3][3]  += b01[3] * a00[1];\n                result[3][2]  += b01[2] * a00[1];\n                result[5][2]  += b01[2] * a00[2];\n                result[5][3]  += b01[3] * a00[2];\n                result[1][3]  += b01[3] * a00[0];\n                result[1][2]  += b01[2] * a00[0];\n            }\n        }\n\n        shared_offset4 ^= 32 * 8;\n        read_A_offset4 ^= 32 * 8;\n        read_B_offset4 ^= 32 * 8;\n        track0 += stride_k * 8;\n        track2 += stride_k * 8;\n        track4 += stride_k * 8;\n        track6 += stride_k * 8;\n    }\n\n    {\n    \n#if ENABLE_SGEMM_BIAS\n        float b[8];\n        const device float *bias = weight_buffer + meta_buffer[3];\n        for (int n_sub = 0; n_sub < 8; n_sub++)\n        {\n            b[n_sub] = (group_position.y * 64 + n_offset * 8 + n_sub < N)\n                ? bias[group_position.y * 64 + n_offset * 8 + n_sub]\n                : 0;\n        }\n#endif\n        \n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n            for (int n_sub1 = 0; n_sub1 < 2; n_sub1++)\n            {\n                for (int n_sub2 = 0; n_sub2 < 4; n_sub2++)\n                {\n                    const int m = group_position.x * 64 + m_offset * 8 + m_sub;\n                    const int n = group_position.y * 64 + n_offset * 8 + n_sub1 * 4 + n_sub2;\n\n#if ENABLE_SGEMM_BIAS\n                    (m < M && n < N) ? \n                        (C[m * N + n] = (result[m_sub * 2 + n_sub1][n_sub2] + b[n_sub1*4+n_sub2]>0?result[m_sub * 2 + n_sub1][n_sub2] + b[n_sub1*4+n_sub2]:0)) :\n                        0;\n#else\n                    (m < M && n < N) ? \n                        (C[m * N + n] = (result[m_sub * 2 + n_sub1][n_sub2]>0?result[m_sub * 2 + n_sub1][n_sub2]:0)) : \n                        0;\n#endif\n                }\n            }\n        }\n    }\n}\n\n#undef ENABLE_SGEMM_BIAS\n\n\nkernel void maxpooling2d_1909200697d86625dbc32384af90fc85f901ab1da0f5c9f5078c5c70(const device float *weight_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float *X = data_buffer + meta_buffer[0];\n    device float *Y = data_buffer + meta_buffer[1];\n    const int N = meta_buffer[2];\n    const int H1 = meta_buffer[3];\n    const int W1 = meta_buffer[4];\n    const int C = meta_buffer[5];\n    const int H2 = meta_buffer[6];\n    const int W2 = meta_buffer[7];\n    const int K = meta_buffer[8];\n    const int S = meta_buffer[9];\n    const int P = meta_buffer[10];\n    \n    for (int gid = index; gid < N * H2 * W2 * C; gid += num_threads) {\n        const int c = gid % C;\n        const int w2 = gid / C % W2;\n        const int h2 = gid / C / W2 % H2;\n        const int n = gid / C / W2 / H2;\n\n        float v = -1e7;\n        for (int kh = 0; kh < K; kh++) {\n            const int h1 = h2 * S - P + kh;\n            if (h1 < 0 || h1 >= H1) continue;\n            \n            for (int kw = 0; kw < K; kw++) {\n                const int w1 = w2 * S - P + kw;\n                if (w1 < 0 || w1 >= W1) continue;\n\n                v = v > X[((n * H1 + h1) * W1 + w1) * C + c] ? v : X[((n * H1 + h1) * W1 + w1) * C + c];\n            }\n        }\n\n        Y[gid] = v;\n    }\n}\n\n\n#define ENABLE_SGEMM_BIAS 1\n\nkernel void sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa(const device float *weight_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          ushort index[[thread_index_in_threadgroup]],\n                          ushort2 group_position[[threadgroup_position_in_grid]])\n{\n    device float *C = data_buffer + meta_buffer[2];\n\n    const device float *load_target = (index & 32) \n        ? (weight_buffer + meta_buffer[1]) \n        : (data_buffer + meta_buffer[0]);\n\n    const int M = meta_buffer[4];\n    const int N = meta_buffer[5];\n    const int K = meta_buffer[6];\n\n    threadgroup float4 shared4[32 * 8 * 2];\n\n    const int stride_k = (index & 32) ? N : 1;\n    const int stride_mn = (index & 32) ? 1 : K;\n\n    const int m_offset = index & 7;\n    const int n_offset = index >> 3;\n\n    const int mn_load_offset = ((index & 32) ? group_position.y : group_position.x) * 64 + (index & 15) * 4;\n    const int k_load_offset = ((index & 16) ? 1 : 0);\n\n    int track0 = mn_load_offset * stride_mn + (k_load_offset + 0) * stride_k;\n    int track2 = track0 + 2 * stride_k;\n    int track4 = track0 + 4 * stride_k;\n    int track6 = track0 + 6 * stride_k;\n\n    const int max_MN = (index & 32) ? N : M;\n\n    int shared_offset4 = ((index & 32) ? 16 : 0) + k_load_offset * 32 + (index & 15);\n    int read_A_offset4 = m_offset * 2;\n    int read_B_offset4 = n_offset * 2 + 16;\n\n    float4 result[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};\n    int k = 0;\n\n    while (k < K)\n    {\n        {\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n            k += 2;\n        }\n\n        threadgroup_barrier(mem_flags::mem_threadgroup);\n\n        {\n            for (int k_sub = 0; k_sub < 8; k_sub++)\n            {\n                float4 a00 = shared4[32 * k_sub + read_A_offset4 + 0];\n                float4 a01 = shared4[32 * k_sub + read_A_offset4 + 1];\n                float4 b00 = shared4[32 * k_sub + read_B_offset4 + 0];\n                float4 b01 = shared4[32 * k_sub + read_B_offset4 + 1];\n\n                result[4][0]  += b00[0] * a00[2];\n                result[4][1]  += b00[1] * a00[2];\n                result[0][1]  += b00[1] * a00[0];\n                result[0][0]  += b00[0] * a00[0];\n                result[6][0]  += b00[0] * a00[3];\n                result[6][1]  += b00[1] * a00[3];\n                result[2][1]  += b00[1] * a00[1];\n                result[2][0]  += b00[0] * a00[1];\n                result[12][0] += b00[0] * a01[2];\n                result[12][1] += b00[1] * a01[2];\n                result[8][1]  += b00[1] * a01[0];\n                result[8][0]  += b00[0] * a01[0];\n                result[14][0] += b00[0] * a01[3];\n                result[14][1] += b00[1] * a01[3];\n                result[10][1] += b00[1] * a01[1];\n                result[10][0] += b00[0] * a01[1];\n\n                result[14][2] += b00[2] * a01[3];\n                result[14][3] += b00[3] * a01[3];\n                result[10][3] += b00[3] * a01[1];\n                result[10][2] += b00[2] * a01[1];\n                result[12][2] += b00[2] * a01[2];\n                result[12][3] += b00[3] * a01[2];\n                result[8][3]  += b00[3] * a01[0];\n                result[8][2]  += b00[2] * a01[0];\n                result[6][2]  += b00[2] * a00[3];\n                result[6][3]  += b00[3] * a00[3];\n                result[2][3]  += b00[3] * a00[1];\n                result[2][2]  += b00[2] * a00[1];\n                result[4][2]  += b00[2] * a00[2];\n                result[4][3]  += b00[3] * a00[2];\n                result[0][3]  += b00[3] * a00[0];\n                result[0][2]  += b00[2] * a00[0];\n\n                result[5][0]  += b01[0] * a00[2];\n                result[5][1]  += b01[1] * a00[2];\n                result[1][1]  += b01[1] * a00[0];\n                result[1][0]  += b01[0] * a00[0];\n                result[7][0]  += b01[0] * a00[3];\n                result[7][1]  += b01[1] * a00[3];\n                result[3][1]  += b01[1] * a00[1];\n                result[3][0]  += b01[0] * a00[1];\n                result[13][0] += b01[0] * a01[2];\n                result[13][1] += b01[1] * a01[2];\n                result[9][1]  += b01[1] * a01[0];\n                result[9][0]  += b01[0] * a01[0];\n                result[15][0] += b01[0] * a01[3];\n                result[15][1] += b01[1] * a01[3];\n                result[11][1] += b01[1] * a01[1];\n                result[11][0] += b01[0] * a01[1];\n\n                result[15][2] += b01[2] * a01[3];\n                result[15][3] += b01[3] * a01[3];\n                result[11][3] += b01[3] * a01[1];\n                result[11][2] += b01[2] * a01[1];\n                result[13][2] += b01[2] * a01[2];\n                result[13][3] += b01[3] * a01[2];\n                result[9][3]  += b01[3] * a01[0];\n                result[9][2]  += b01[2] * a01[0];\n                result[7][2]  += b01[2] * a00[3];\n                result[7][3]  += b01[3] * a00[3];\n                result[3][3]  += b01[3] * a00[1];\n                result[3][2]  += b01[2] * a00[1];\n                result[5][2]  += b01[2] * a00[2];\n                result[5][3]  += b01[3] * a00[2];\n                result[1][3]  += b01[3] * a00[0];\n                result[1][2]  += b01[2] * a00[0];\n            }\n        }\n\n        shared_offset4 ^= 32 * 8;\n        read_A_offset4 ^= 32 * 8;\n        read_B_offset4 ^= 32 * 8;\n        track0 += stride_k * 8;\n        track2 += stride_k * 8;\n        track4 += stride_k * 8;\n        track6 += stride_k * 8;\n    }\n\n    {\n    \n#if ENABLE_SGEMM_BIAS\n        float b[8];\n        const device float *bias = weight_buffer + meta_buffer[3];\n        for (int n_sub = 0; n_sub < 8; n_sub++)\n        {\n            b[n_sub] = (group_position.y * 64 + n_offset * 8 + n_sub < N)\n                ? bias[group_position.y * 64 + n_offset * 8 + n_sub]\n                : 0;\n        }\n#endif\n        \n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n            for (int n_sub1 = 0; n_sub1 < 2; n_sub1++)\n            {\n                for (int n_sub2 = 0; n_sub2 < 4; n_sub2++)\n                {\n                    const int m = group_position.x * 64 + m_offset * 8 + m_sub;\n                    const int n = group_position.y * 64 + n_offset * 8 + n_sub1 * 4 + n_sub2;\n\n#if ENABLE_SGEMM_BIAS\n                    (m < M && n < N) ? \n                        (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2] + b[n_sub1*4+n_sub2]) :\n                        0;\n#else\n                    (m < M && n < N) ? \n                        (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : \n                        0;\n#endif\n                }\n            }\n        }\n    }\n}\n\n#undef ENABLE_SGEMM_BIAS\n\n\nkernel void elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552(const device float *weight_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float *X0 = data_buffer + meta_buffer[0];\n    const device float *X1 = data_buffer + meta_buffer[1];\n    device float *Y = data_buffer + meta_buffer[2];\n    const int N = meta_buffer[3];\n  \n    for (int gid = index; gid < N; gid += num_threads) {\n        float result = X0[gid] + X1[gid];\n\n        Y[gid] = (result>0?result:0);\n    }\n}\n\n\nkernel void averagepooling2d_f0ba1a52306098f616650e4ebde85e8ffb36b1ed731a512cdab1c036(const device float *weight_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float *X = data_buffer + meta_buffer[0];\n    device float *Y = data_buffer + meta_buffer[1];\n    const int N = meta_buffer[2];\n    const int H1 = meta_buffer[3];\n    const int W1 = meta_buffer[4];\n    const int C = meta_buffer[5];\n    const int H2 = meta_buffer[6];\n    const int W2 = meta_buffer[7];\n    const int K = meta_buffer[8];\n    const int S = meta_buffer[9];\n    const int P = meta_buffer[10];\n    \n    for (int gid = index; gid < N * H2 * W2 * C; gid += num_threads) {\n        const int c = gid % C;\n        const int w2 = gid / C % W2;\n        const int h2 = gid / C / W2 % H2;\n        const int n = gid / C / W2 / H2;\n\n        float v = 0;\n        for (int kh = 0; kh < K; kh++) {\n            const int h1 = h2 * S - P + kh;\n            if (h1 < 0 || h1 >= H1) continue;\n            \n            for (int kw = 0; kw < K; kw++) {\n                const int w1 = w2 * S - P + kw;\n                if (w1 < 0 || w1 >= W1) continue;\n\n                v += X[((n * H1 + h1) * W1 + w1) * C + c];\n            }\n        }\n        v /= K * K;\n\n        Y[gid] = v;\n    }\n}\n",
+  "exec_infos": [
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 52900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        76,
+        2,
+        0,
+        1,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        224,
+        0,
+        0,
+        0,
+        224,
+        0,
+        0,
+        0,
+        112,
+        0,
+        0,
+        0,
+        112,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 196,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        168,
+        47,
+        227,
+        0,
+        0,
+        111,
+        30,
+        0,
+        104,
+        167,
+        225,
+        0,
+        0,
+        49,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        147,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "maxpooling2d_1909200697d86625dbc32384af90fc85f901ab1da0f5c9f5078c5c70",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        111,
+        30,
+        0,
+        0,
+        76,
+        2,
+        0,
+        1,
+        0,
+        0,
+        0,
+        112,
+        0,
+        0,
+        0,
+        112,
+        0,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 49,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        168,
+        167,
+        225,
+        0,
+        0,
+        236,
+        32,
+        0,
+        168,
+        236,
+        225,
+        0,
+        64,
+        12,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 49,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        232,
+        42,
+        234,
+        0,
+        0,
+        220,
+        29,
+        0,
+        128,
+        0,
+        21,
+        0,
+        64,
+        12,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 3364,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        220,
+        29,
+        0,
+        0,
+        76,
+        2,
+        0,
+        1,
+        0,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 49,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        104,
+        131,
+        234,
+        0,
+        0,
+        220,
+        29,
+        0,
+        40,
+        127,
+        73,
+        1,
+        64,
+        12,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        64,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 49,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        220,
+        29,
+        0,
+        104,
+        27,
+        23,
+        1,
+        0,
+        76,
+        2,
+        0,
+        104,
+        48,
+        24,
+        1,
+        64,
+        12,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        0,
+        236,
+        32,
+        0,
+        0,
+        76,
+        2,
+        0,
+        0,
+        64,
+        12,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 49,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        168,
+        239,
+        226,
+        0,
+        0,
+        140,
+        14,
+        0,
+        232,
+        153,
+        168,
+        0,
+        64,
+        12,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 3364,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        140,
+        14,
+        0,
+        0,
+        156,
+        17,
+        0,
+        1,
+        0,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 49,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        156,
+        17,
+        0,
+        232,
+        149,
+        229,
+        0,
+        0,
+        140,
+        14,
+        0,
+        168,
+        149,
+        160,
+        0,
+        64,
+        12,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        64,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 49,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        140,
+        14,
+        0,
+        104,
+        59,
+        234,
+        0,
+        0,
+        236,
+        32,
+        0,
+        40,
+        156,
+        206,
+        0,
+        64,
+        12,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        236,
+        32,
+        0,
+        0,
+        76,
+        2,
+        0,
+        0,
+        236,
+        32,
+        0,
+        0,
+        64,
+        12,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 49,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        236,
+        32,
+        0,
+        104,
+        91,
+        23,
+        1,
+        0,
+        76,
+        2,
+        0,
+        232,
+        126,
+        73,
+        1,
+        64,
+        12,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 3364,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        0,
+        92,
+        5,
+        0,
+        1,
+        0,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 49,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        92,
+        5,
+        0,
+        104,
+        158,
+        23,
+        1,
+        0,
+        76,
+        2,
+        0,
+        40,
+        167,
+        225,
+        0,
+        64,
+        12,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        64,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 49,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        232,
+        50,
+        41,
+        1,
+        0,
+        156,
+        17,
+        0,
+        168,
+        237,
+        225,
+        0,
+        64,
+        12,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        156,
+        17,
+        0,
+        0,
+        236,
+        32,
+        0,
+        0,
+        156,
+        17,
+        0,
+        0,
+        64,
+        12,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 3136,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        156,
+        17,
+        0,
+        0,
+        76,
+        2,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 13,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        232,
+        130,
+        75,
+        1,
+        0,
+        20,
+        16,
+        0,
+        104,
+        149,
+        229,
+        0,
+        16,
+        3,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        20,
+        16,
+        0,
+        0,
+        76,
+        2,
+        0,
+        1,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 13,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        232,
+        68,
+        94,
+        1,
+        0,
+        20,
+        16,
+        0,
+        232,
+        58,
+        234,
+        0,
+        16,
+        3,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 13,
+        "height": 8,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        20,
+        16,
+        0,
+        232,
+        129,
+        74,
+        1,
+        0,
+        76,
+        2,
+        0,
+        104,
+        23,
+        243,
+        0,
+        16,
+        3,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 3136,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        156,
+        17,
+        0,
+        0,
+        108,
+        8,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        56,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 13,
+        "height": 8,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        108,
+        8,
+        0,
+        40,
+        167,
+        223,
+        0,
+        0,
+        124,
+        11,
+        0,
+        104,
+        156,
+        23,
+        1,
+        16,
+        3,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        0,
+        124,
+        11,
+        0,
+        0,
+        76,
+        2,
+        0,
+        0,
+        32,
+        6,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 13,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        168,
+        238,
+        225,
+        0,
+        0,
+        108,
+        8,
+        0,
+        104,
+        50,
+        41,
+        1,
+        16,
+        3,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        108,
+        8,
+        0,
+        0,
+        244,
+        9,
+        0,
+        1,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 13,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        244,
+        9,
+        0,
+        104,
+        85,
+        227,
+        0,
+        0,
+        108,
+        8,
+        0,
+        104,
+        127,
+        73,
+        1,
+        16,
+        3,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 13,
+        "height": 8,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        108,
+        8,
+        0,
+        104,
+        50,
+        40,
+        1,
+        0,
+        36,
+        19,
+        0,
+        232,
+        66,
+        94,
+        1,
+        16,
+        3,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        36,
+        19,
+        0,
+        0,
+        76,
+        2,
+        0,
+        0,
+        36,
+        19,
+        0,
+        0,
+        32,
+        6,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 13,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        36,
+        19,
+        0,
+        232,
+        127,
+        73,
+        1,
+        0,
+        76,
+        2,
+        0,
+        232,
+        135,
+        133,
+        1,
+        16,
+        3,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        0,
+        212,
+        3,
+        0,
+        1,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 13,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        212,
+        3,
+        0,
+        232,
+        2,
+        92,
+        1,
+        0,
+        156,
+        17,
+        0,
+        0,
+        0,
+        20,
+        0,
+        16,
+        3,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 13,
+        "height": 8,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        156,
+        17,
+        0,
+        232,
+        135,
+        132,
+        1,
+        0,
+        76,
+        2,
+        0,
+        192,
+        66,
+        48,
+        0,
+        16,
+        3,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        0,
+        36,
+        19,
+        0,
+        0,
+        76,
+        2,
+        0,
+        0,
+        32,
+        6,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 13,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        128,
+        0,
+        20,
+        0,
+        0,
+        108,
+        8,
+        0,
+        192,
+        70,
+        89,
+        0,
+        16,
+        3,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        108,
+        8,
+        0,
+        0,
+        244,
+        9,
+        0,
+        1,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 13,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        244,
+        9,
+        0,
+        192,
+        2,
+        46,
+        0,
+        0,
+        188,
+        23,
+        0,
+        64,
+        79,
+        109,
+        0,
+        16,
+        3,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 13,
+        "height": 8,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        188,
+        23,
+        0,
+        192,
+        70,
+        88,
+        0,
+        0,
+        108,
+        8,
+        0,
+        168,
+        147,
+        160,
+        0,
+        16,
+        3,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        108,
+        8,
+        0,
+        0,
+        76,
+        2,
+        0,
+        0,
+        108,
+        8,
+        0,
+        0,
+        32,
+        6,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 784,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        108,
+        8,
+        0,
+        0,
+        92,
+        5,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 16,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        92,
+        5,
+        0,
+        40,
+        154,
+        168,
+        0,
+        0,
+        76,
+        2,
+        0,
+        232,
+        149,
+        168,
+        0,
+        196,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 784,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        108,
+        8,
+        0,
+        0,
+        92,
+        5,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        28,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        92,
+        5,
+        0,
+        192,
+        79,
+        109,
+        0,
+        0,
+        64,
+        12,
+        0,
+        40,
+        154,
+        180,
+        0,
+        196,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 256,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        64,
+        12,
+        0,
+        0,
+        92,
+        5,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        92,
+        5,
+        0,
+        192,
+        143,
+        151,
+        0,
+        0,
+        200,
+        13,
+        0,
+        40,
+        155,
+        189,
+        0,
+        196,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        9,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 16,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        200,
+        13,
+        0,
+        232,
+        149,
+        164,
+        0,
+        0,
+        184,
+        10,
+        0,
+        40,
+        157,
+        206,
+        0,
+        196,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        184,
+        10,
+        0,
+        0,
+        76,
+        2,
+        0,
+        0,
+        184,
+        10,
+        0,
+        0,
+        16,
+        3,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        184,
+        10,
+        0,
+        40,
+        156,
+        189,
+        0,
+        0,
+        76,
+        2,
+        0,
+        40,
+        161,
+        214,
+        0,
+        196,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 256,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        0,
+        16,
+        3,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        16,
+        3,
+        0,
+        40,
+        156,
+        197,
+        0,
+        0,
+        244,
+        9,
+        0,
+        40,
+        166,
+        223,
+        0,
+        196,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        9,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 16,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        244,
+        9,
+        0,
+        40,
+        161,
+        210,
+        0,
+        0,
+        76,
+        2,
+        0,
+        168,
+        232,
+        225,
+        0,
+        196,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        0,
+        184,
+        10,
+        0,
+        0,
+        76,
+        2,
+        0,
+        0,
+        16,
+        3,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        0,
+        0,
+        16,
+        0,
+        0,
+        92,
+        5,
+        0,
+        104,
+        84,
+        227,
+        0,
+        196,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 256,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        92,
+        5,
+        0,
+        0,
+        32,
+        6,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        32,
+        6,
+        0,
+        192,
+        2,
+        21,
+        0,
+        0,
+        92,
+        5,
+        0,
+        232,
+        41,
+        230,
+        0,
+        196,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        9,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 16,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        92,
+        5,
+        0,
+        192,
+        70,
+        84,
+        0,
+        0,
+        184,
+        10,
+        0,
+        104,
+        19,
+        235,
+        0,
+        196,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        184,
+        10,
+        0,
+        0,
+        76,
+        2,
+        0,
+        0,
+        184,
+        10,
+        0,
+        0,
+        16,
+        3,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        184,
+        10,
+        0,
+        64,
+        79,
+        105,
+        0,
+        0,
+        76,
+        2,
+        0,
+        104,
+        155,
+        23,
+        1,
+        196,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 256,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        0,
+        16,
+        3,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        16,
+        3,
+        0,
+        192,
+        79,
+        111,
+        0,
+        0,
+        244,
+        9,
+        0,
+        104,
+        49,
+        40,
+        1,
+        196,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        9,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 16,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        244,
+        9,
+        0,
+        232,
+        149,
+        160,
+        0,
+        0,
+        76,
+        2,
+        0,
+        232,
+        122,
+        73,
+        1,
+        196,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        0,
+        184,
+        10,
+        0,
+        0,
+        76,
+        2,
+        0,
+        0,
+        16,
+        3,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        40,
+        154,
+        176,
+        0,
+        0,
+        92,
+        5,
+        0,
+        232,
+        129,
+        75,
+        1,
+        196,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 256,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        92,
+        5,
+        0,
+        0,
+        32,
+        6,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        32,
+        6,
+        0,
+        40,
+        155,
+        180,
+        0,
+        0,
+        92,
+        5,
+        0,
+        232,
+        134,
+        132,
+        1,
+        196,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        9,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 16,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        92,
+        5,
+        0,
+        40,
+        156,
+        193,
+        0,
+        0,
+        244,
+        9,
+        0,
+        40,
+        162,
+        223,
+        0,
+        196,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        244,
+        9,
+        0,
+        0,
+        76,
+        2,
+        0,
+        0,
+        244,
+        9,
+        0,
+        0,
+        16,
+        3,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        244,
+        9,
+        0,
+        40,
+        161,
+        206,
+        0,
+        0,
+        76,
+        2,
+        0,
+        168,
+        231,
+        225,
+        0,
+        196,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 256,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        0,
+        16,
+        3,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        16,
+        3,
+        0,
+        40,
+        162,
+        214,
+        0,
+        0,
+        76,
+        2,
+        0,
+        168,
+        238,
+        226,
+        0,
+        196,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        9,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 4,
+        "height": 16,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        232,
+        42,
+        230,
+        0,
+        0,
+        212,
+        3,
+        0,
+        232,
+        37,
+        230,
+        0,
+        196,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        212,
+        3,
+        0,
+        0,
+        244,
+        9,
+        0,
+        0,
+        212,
+        3,
+        0,
+        0,
+        16,
+        3,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 196,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        212,
+        3,
+        0,
+        0,
+        228,
+        6,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 1,
+        "height": 32,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        228,
+        6,
+        0,
+        232,
+        122,
+        41,
+        1,
+        0,
+        76,
+        2,
+        0,
+        104,
+        123,
+        234,
+        0,
+        49,
+        0,
+        0,
+        0,
+        0,
+        8,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 196,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        212,
+        3,
+        0,
+        0,
+        228,
+        6,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        14,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 1,
+        "height": 8,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        228,
+        6,
+        0,
+        104,
+        23,
+        235,
+        0,
+        0,
+        212,
+        3,
+        0,
+        104,
+        25,
+        243,
+        0,
+        49,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 81,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        212,
+        3,
+        0,
+        0,
+        54,
+        4,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 1,
+        "height": 8,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        54,
+        4,
+        0,
+        104,
+        27,
+        243,
+        0,
+        0,
+        212,
+        3,
+        0,
+        104,
+        46,
+        24,
+        1,
+        49,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        18,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 1,
+        "height": 32,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        212,
+        3,
+        0,
+        104,
+        49,
+        24,
+        1,
+        0,
+        130,
+        6,
+        0,
+        232,
+        114,
+        41,
+        1,
+        49,
+        0,
+        0,
+        0,
+        0,
+        8,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        130,
+        6,
+        0,
+        0,
+        76,
+        2,
+        0,
+        0,
+        130,
+        6,
+        0,
+        0,
+        136,
+        1,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 1,
+        "height": 8,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        130,
+        6,
+        0,
+        232,
+        2,
+        76,
+        1,
+        0,
+        76,
+        2,
+        0,
+        232,
+        127,
+        74,
+        1,
+        49,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        8,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 81,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        0,
+        174,
+        2,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 1,
+        "height": 8,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        174,
+        2,
+        0,
+        232,
+        134,
+        96,
+        1,
+        0,
+        32,
+        6,
+        0,
+        232,
+        132,
+        96,
+        1,
+        49,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        18,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 1,
+        "height": 32,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        32,
+        6,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        76,
+        2,
+        0,
+        104,
+        136,
+        133,
+        1,
+        49,
+        0,
+        0,
+        0,
+        0,
+        8,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        0,
+        130,
+        6,
+        0,
+        0,
+        76,
+        2,
+        0,
+        0,
+        136,
+        1,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 1,
+        "height": 8,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        192,
+        2,
+        30,
+        0,
+        0,
+        212,
+        3,
+        0,
+        192,
+        0,
+        21,
+        0,
+        49,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        8,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 81,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        212,
+        3,
+        0,
+        0,
+        54,
+        4,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 1,
+        "height": 8,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        54,
+        4,
+        0,
+        192,
+        70,
+        48,
+        0,
+        0,
+        168,
+        7,
+        0,
+        192,
+        68,
+        48,
+        0,
+        49,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        18,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 1,
+        "height": 32,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        168,
+        7,
+        0,
+        64,
+        79,
+        89,
+        0,
+        0,
+        212,
+        3,
+        0,
+        64,
+        71,
+        89,
+        0,
+        49,
+        0,
+        0,
+        0,
+        0,
+        8,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_2f387652666647f0eb9682764e30c31f0e157097730eb6a704bc7552",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        212,
+        3,
+        0,
+        0,
+        76,
+        2,
+        0,
+        0,
+        212,
+        3,
+        0,
+        0,
+        136,
+        1,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "averagepooling2d_f0ba1a52306098f616650e4ebde85e8ffb36b1ed731a512cdab1c036",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        212,
+        3,
+        0,
+        0,
+        76,
+        2,
+        0,
+        1,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        0,
+        8,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 1,
+        "height": 16,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        76,
+        2,
+        0,
+        192,
+        79,
+        120,
+        0,
+        0,
+        84,
+        2,
+        0,
+        192,
+        143,
+        160,
+        0,
+        1,
+        0,
+        0,
+        0,
+        232,
+        3,
+        0,
+        0,
+        0,
+        8,
+        0,
+        0
+      ]
+    }
+  ],
+  "weight_allocation": {
+    "total_size": 25530472,
+    "allocation": {
+      "ConstantVariable253": {
+        "name": "ConstantVariable253",
+        "offset": 0,
+        "size": 1048576
+      },
+      "ConstantVariable162": {
+        "name": "ConstantVariable162",
+        "offset": 1048576,
+        "size": 262144
+      },
+      "ConstantVariable393": {
+        "name": "ConstantVariable393",
+        "offset": 1310720,
+        "size": 128
+      },
+      "ConstantVariable132": {
+        "name": "ConstantVariable132",
+        "offset": 1310848,
+        "size": 65536
+      },
+      "ConstantVariable376": {
+        "name": "ConstantVariable376",
+        "offset": 1376384,
+        "size": 64
+      },
+      "ConstantVariable424": {
+        "name": "ConstantVariable424",
+        "offset": 1376448,
+        "size": 512
+      },
+      "ConstantVariable164": {
+        "name": "ConstantVariable164",
+        "offset": 1376960,
+        "size": 589824
+      },
+      "ConstantVariable257": {
+        "name": "ConstantVariable257",
+        "offset": 1966784,
+        "size": 1048576
+      },
+      "ConstantVariable134": {
+        "name": "ConstantVariable134",
+        "offset": 3015360,
+        "size": 147456
+      },
+      "ConstantVariable394": {
+        "name": "ConstantVariable394",
+        "offset": 3162816,
+        "size": 512
+      },
+      "ConstantVariable425": {
+        "name": "ConstantVariable425",
+        "offset": 3163328,
+        "size": 512
+      },
+      "ConstantVariable259": {
+        "name": "ConstantVariable259",
+        "offset": 3163840,
+        "size": 2359296
+      },
+      "ConstantVariable167": {
+        "name": "ConstantVariable167",
+        "offset": 5523136,
+        "size": 262144
+      },
+      "ConstantVariable137": {
+        "name": "ConstantVariable137",
+        "offset": 5785280,
+        "size": 65536
+      },
+      "ConstantVariable395": {
+        "name": "ConstantVariable395",
+        "offset": 5850816,
+        "size": 128
+      },
+      "ConstantVariable426": {
+        "name": "ConstantVariable426",
+        "offset": 5850944,
+        "size": 2048
+      },
+      "ConstantVariable262": {
+        "name": "ConstantVariable262",
+        "offset": 5852992,
+        "size": 1048576
+      },
+      "ConstantVariable171": {
+        "name": "ConstantVariable171",
+        "offset": 6901568,
+        "size": 262144
+      },
+      "ConstantVariable396": {
+        "name": "ConstantVariable396",
+        "offset": 7163712,
+        "size": 128
+      },
+      "ConstantVariable141": {
+        "name": "ConstantVariable141",
+        "offset": 7163840,
+        "size": 131072
+      },
+      "ConstantVariable173": {
+        "name": "ConstantVariable173",
+        "offset": 7294912,
+        "size": 589824
+      },
+      "ConstantVariable266": {
+        "name": "ConstantVariable266",
+        "offset": 7884736,
+        "size": 2048000
+      },
+      "ConstantVariable143": {
+        "name": "ConstantVariable143",
+        "offset": 9932736,
+        "size": 589824
+      },
+      "ConstantVariable267": {
+        "name": "ConstantVariable267",
+        "offset": 10522560,
+        "size": 1000
+      },
+      "ConstantVariable397": {
+        "name": "ConstantVariable397",
+        "offset": 10523560,
+        "size": 512
+      },
+      "ConstantVariable380": {
+        "name": "ConstantVariable380",
+        "offset": 10524072,
+        "size": 64
+      },
+      "ConstantVariable176": {
+        "name": "ConstantVariable176",
+        "offset": 10524136,
+        "size": 262144
+      },
+      "ConstantVariable146": {
+        "name": "ConstantVariable146",
+        "offset": 10786280,
+        "size": 262144
+      },
+      "ConstantVariable398": {
+        "name": "ConstantVariable398",
+        "offset": 11048424,
+        "size": 1024
+      },
+      "ConstantVariable379": {
+        "name": "ConstantVariable379",
+        "offset": 11049448,
+        "size": 64
+      },
+      "ConstantVariable149": {
+        "name": "ConstantVariable149",
+        "offset": 11049512,
+        "size": 524288
+      },
+      "ConstantVariable180": {
+        "name": "ConstantVariable180",
+        "offset": 11573800,
+        "size": 262144
+      },
+      "ConstantVariable399": {
+        "name": "ConstantVariable399",
+        "offset": 11835944,
+        "size": 256
+      },
+      "ConstantVariable182": {
+        "name": "ConstantVariable182",
+        "offset": 11836200,
+        "size": 589824
+      },
+      "ConstantVariable400": {
+        "name": "ConstantVariable400",
+        "offset": 12426024,
+        "size": 256
+      },
+      "ConstantVariable153": {
+        "name": "ConstantVariable153",
+        "offset": 12426280,
+        "size": 262144
+      },
+      "ConstantVariable185": {
+        "name": "ConstantVariable185",
+        "offset": 12688424,
+        "size": 262144
+      },
+      "ConstantVariable155": {
+        "name": "ConstantVariable155",
+        "offset": 12950568,
+        "size": 589824
+      },
+      "ConstantVariable381": {
+        "name": "ConstantVariable381",
+        "offset": 13540392,
+        "size": 256
+      },
+      "ConstantVariable401": {
+        "name": "ConstantVariable401",
+        "offset": 13540648,
+        "size": 1024
+      },
+      "ConstantVariable189": {
+        "name": "ConstantVariable189",
+        "offset": 13541672,
+        "size": 262144
+      },
+      "ConstantVariable158": {
+        "name": "ConstantVariable158",
+        "offset": 13803816,
+        "size": 262144
+      },
+      "ConstantVariable402": {
+        "name": "ConstantVariable402",
+        "offset": 14065960,
+        "size": 256
+      },
+      "ConstantVariable191": {
+        "name": "ConstantVariable191",
+        "offset": 14066216,
+        "size": 589824
+      },
+      "ConstantVariable413": {
+        "name": "ConstantVariable413",
+        "offset": 14656040,
+        "size": 1024
+      },
+      "ConstantVariable403": {
+        "name": "ConstantVariable403",
+        "offset": 14657064,
+        "size": 256
+      },
+      "ConstantVariable225": {
+        "name": "ConstantVariable225",
+        "offset": 14657320,
+        "size": 131072
+      },
+      "ConstantVariable383": {
+        "name": "ConstantVariable383",
+        "offset": 14788392,
+        "size": 64
+      },
+      "ConstantVariable374": {
+        "name": "ConstantVariable374",
+        "offset": 14788456,
+        "size": 64
+      },
+      "ConstantVariable195": {
+        "name": "ConstantVariable195",
+        "offset": 14788520,
+        "size": 16384
+      },
+      "ConstantVariable414": {
+        "name": "ConstantVariable414",
+        "offset": 14804904,
+        "size": 256
+      },
+      "ConstantVariable404": {
+        "name": "ConstantVariable404",
+        "offset": 14805160,
+        "size": 1024
+      },
+      "ConstantVariable375": {
+        "name": "ConstantVariable375",
+        "offset": 14806184,
+        "size": 256
+      },
+      "ConstantVariable384": {
+        "name": "ConstantVariable384",
+        "offset": 14806440,
+        "size": 256
+      },
+      "ConstantVariable229": {
+        "name": "ConstantVariable229",
+        "offset": 14806696,
+        "size": 65536
+      },
+      "ConstantVariable415": {
+        "name": "ConstantVariable415",
+        "offset": 14872232,
+        "size": 256
+      },
+      "ConstantVariable199": {
+        "name": "ConstantVariable199",
+        "offset": 14872488,
+        "size": 16384
+      },
+      "ConstantVariable106": {
+        "name": "ConstantVariable106",
+        "offset": 14888872,
+        "size": 9408
+      },
+      "ConstantVariable405": {
+        "name": "ConstantVariable405",
+        "offset": 14898280,
+        "size": 256
+      },
+      "ConstantVariable231": {
+        "name": "ConstantVariable231",
+        "offset": 14898536,
+        "size": 147456
+      },
+      "ConstantVariable385": {
+        "name": "ConstantVariable385",
+        "offset": 15045992,
+        "size": 128
+      },
+      "ConstantVariable201": {
+        "name": "ConstantVariable201",
+        "offset": 15046120,
+        "size": 36864
+      },
+      "ConstantVariable416": {
+        "name": "ConstantVariable416",
+        "offset": 15082984,
+        "size": 1024
+      },
+      "ConstantVariable406": {
+        "name": "ConstantVariable406",
+        "offset": 15084008,
+        "size": 256
+      },
+      "ConstantVariable233": {
+        "name": "ConstantVariable233",
+        "offset": 15084264,
+        "size": 262144
+      },
+      "ConstantVariable110": {
+        "name": "ConstantVariable110",
+        "offset": 15346408,
+        "size": 4096
+      },
+      "ConstantVariable386": {
+        "name": "ConstantVariable386",
+        "offset": 15350504,
+        "size": 128
+      },
+      "ConstantVariable204": {
+        "name": "ConstantVariable204",
+        "offset": 15350632,
+        "size": 16384
+      },
+      "ConstantVariable417": {
+        "name": "ConstantVariable417",
+        "offset": 15367016,
+        "size": 2048
+      },
+      "ConstantVariable112": {
+        "name": "ConstantVariable112",
+        "offset": 15369064,
+        "size": 36864
+      },
+      "ConstantVariable407": {
+        "name": "ConstantVariable407",
+        "offset": 15405928,
+        "size": 1024
+      },
+      "ConstantVariable236": {
+        "name": "ConstantVariable236",
+        "offset": 15406952,
+        "size": 524288
+      },
+      "ConstantVariable387": {
+        "name": "ConstantVariable387",
+        "offset": 15931240,
+        "size": 512
+      },
+      "ConstantVariable418": {
+        "name": "ConstantVariable418",
+        "offset": 15931752,
+        "size": 512
+      },
+      "ConstantVariable238": {
+        "name": "ConstantVariable238",
+        "offset": 15932264,
+        "size": 2359296
+      },
+      "ConstantVariable115": {
+        "name": "ConstantVariable115",
+        "offset": 18291560,
+        "size": 16384
+      },
+      "ConstantVariable208": {
+        "name": "ConstantVariable208",
+        "offset": 18307944,
+        "size": 16384
+      },
+      "ConstantVariable408": {
+        "name": "ConstantVariable408",
+        "offset": 18324328,
+        "size": 256
+      },
+      "ConstantVariable388": {
+        "name": "ConstantVariable388",
+        "offset": 18324584,
+        "size": 512
+      },
+      "ConstantVariable210": {
+        "name": "ConstantVariable210",
+        "offset": 18325096,
+        "size": 36864
+      },
+      "ConstantVariable419": {
+        "name": "ConstantVariable419",
+        "offset": 18361960,
+        "size": 512
+      },
+      "ConstantVariable378": {
+        "name": "ConstantVariable378",
+        "offset": 18362472,
+        "size": 256
+      },
+      "ConstantVariable241": {
+        "name": "ConstantVariable241",
+        "offset": 18362728,
+        "size": 1048576
+      },
+      "ConstantVariable409": {
+        "name": "ConstantVariable409",
+        "offset": 19411304,
+        "size": 256
+      },
+      "ConstantVariable119": {
+        "name": "ConstantVariable119",
+        "offset": 19411560,
+        "size": 65536
+      },
+      "ConstantVariable389": {
+        "name": "ConstantVariable389",
+        "offset": 19477096,
+        "size": 128
+      },
+      "ConstantVariable213": {
+        "name": "ConstantVariable213",
+        "offset": 19477224,
+        "size": 16384
+      },
+      "ConstantVariable420": {
+        "name": "ConstantVariable420",
+        "offset": 19493608,
+        "size": 2048
+      },
+      "ConstantVariable244": {
+        "name": "ConstantVariable244",
+        "offset": 19495656,
+        "size": 2097152
+      },
+      "ConstantVariable410": {
+        "name": "ConstantVariable410",
+        "offset": 21592808,
+        "size": 1024
+      },
+      "ConstantVariable382": {
+        "name": "ConstantVariable382",
+        "offset": 21593832,
+        "size": 64
+      },
+      "ConstantVariable377": {
+        "name": "ConstantVariable377",
+        "offset": 21593896,
+        "size": 64
+      },
+      "ConstantVariable390": {
+        "name": "ConstantVariable390",
+        "offset": 21593960,
+        "size": 128
+      },
+      "ConstantVariable123": {
+        "name": "ConstantVariable123",
+        "offset": 21594088,
+        "size": 65536
+      },
+      "ConstantVariable421": {
+        "name": "ConstantVariable421",
+        "offset": 21659624,
+        "size": 512
+      },
+      "ConstantVariable222": {
+        "name": "ConstantVariable222",
+        "offset": 21660136,
+        "size": 65536
+      },
+      "ConstantVariable411": {
+        "name": "ConstantVariable411",
+        "offset": 21725672,
+        "size": 256
+      },
+      "ConstantVariable217": {
+        "name": "ConstantVariable217",
+        "offset": 21725928,
+        "size": 32768
+      },
+      "ConstantVariable248": {
+        "name": "ConstantVariable248",
+        "offset": 21758696,
+        "size": 1048576
+      },
+      "ConstantVariable125": {
+        "name": "ConstantVariable125",
+        "offset": 22807272,
+        "size": 147456
+      },
+      "ConstantVariable391": {
+        "name": "ConstantVariable391",
+        "offset": 22954728,
+        "size": 512
+      },
+      "ConstantVariable219": {
+        "name": "ConstantVariable219",
+        "offset": 22955240,
+        "size": 147456
+      },
+      "ConstantVariable422": {
+        "name": "ConstantVariable422",
+        "offset": 23102696,
+        "size": 512
+      },
+      "ConstantVariable250": {
+        "name": "ConstantVariable250",
+        "offset": 23103208,
+        "size": 2359296
+      },
+      "ConstantVariable412": {
+        "name": "ConstantVariable412",
+        "offset": 25462504,
+        "size": 256
+      },
+      "ConstantVariable128": {
+        "name": "ConstantVariable128",
+        "offset": 25462760,
+        "size": 65536
+      },
+      "ConstantVariable392": {
+        "name": "ConstantVariable392",
+        "offset": 25528296,
+        "size": 128
+      },
+      "ConstantVariable423": {
+        "name": "ConstantVariable423",
+        "offset": 25528424,
+        "size": 2048
+      }
+    }
+  },
+  "weight_encoding": "eightbit",
+  "variable_allocation": {
+    "total_size": 2960384,
+    "allocation": {
+      "Variable248": {
+        "name": "Variable248",
+        "offset": 150528,
+        "size": 903168
+      },
+      "Variable90": {
+        "name": "Variable90",
+        "offset": 150528,
+        "size": 401408
+      },
+      "Variable6": {
+        "name": "Variable6",
+        "offset": 150528,
+        "size": 200704
+      },
+      "Variable117": {
+        "name": "Variable117",
+        "offset": 150528,
+        "size": 200704
+      },
+      "Variable60": {
+        "name": "Variable60",
+        "offset": 752640,
+        "size": 401408
+      },
+      "Variable200": {
+        "name": "Variable200",
+        "offset": 426496,
+        "size": 100352
+      },
+      "Variable251": {
+        "name": "Variable251",
+        "offset": 551936,
+        "size": 200704
+      },
+      "Variable39": {
+        "name": "Variable39",
+        "offset": 150528,
+        "size": 200704
+      },
+      "Variable81": {
+        "name": "Variable81",
+        "offset": 150528,
+        "size": 100352
+      },
+      "Variable169": {
+        "name": "Variable169",
+        "offset": 652288,
+        "size": 200704
+      },
+      "Variable254": {
+        "name": "Variable254",
+        "offset": 652288,
+        "size": 903168
+      },
+      "Variable72": {
+        "name": "Variable72",
+        "offset": 551936,
+        "size": 100352
+      },
+      "Variable119": {
+        "name": "Variable119",
+        "offset": 702464,
+        "size": 200704
+      },
+      "Variable62": {
+        "name": "Variable62",
+        "offset": 150528,
+        "size": 401408
+      },
+      "Variable258": {
+        "name": "Variable258",
+        "offset": 250880,
+        "size": 903168
+      },
+      "Variable171": {
+        "name": "Variable171",
+        "offset": 652288,
+        "size": 200704
+      },
+      "Variable10": {
+        "name": "Variable10",
+        "offset": 1956864,
+        "size": 200704
+      },
+      "Variable94": {
+        "name": "Variable94",
+        "offset": 551936,
+        "size": 100352
+      },
+      "Variable0": {
+        "name": "Variable0",
+        "offset": 0,
+        "size": 150528
+      },
+      "Variable204": {
+        "name": "Variable204",
+        "offset": 150528,
+        "size": 25088
+      },
+      "Variable262": {
+        "name": "Variable262",
+        "offset": 652288,
+        "size": 903168
+      },
+      "Variable231": {
+        "name": "Variable231",
+        "offset": 150528,
+        "size": 1843968
+      },
+      "Variable43": {
+        "name": "Variable43",
+        "offset": 150528,
+        "size": 200704
+      },
+      "Variable85": {
+        "name": "Variable85",
+        "offset": 1154048,
+        "size": 100352
+      },
+      "Variable156": {
+        "name": "Variable156",
+        "offset": 150528,
+        "size": 200704
+      },
+      "Variable64": {
+        "name": "Variable64",
+        "offset": 150528,
+        "size": 401408
+      },
+      "Variable75": {
+        "name": "Variable75",
+        "offset": 1254400,
+        "size": 401408
+      },
+      "Variable265": {
+        "name": "Variable265",
+        "offset": 351232,
+        "size": 100352
+      },
+      "Variable267": {
+        "name": "Variable267",
+        "offset": 351232,
+        "size": 100352
+      },
+      "Variable235": {
+        "name": "Variable235",
+        "offset": 150528,
+        "size": 1806336
+      },
+      "Variable269": {
+        "name": "Variable269",
+        "offset": 351232,
+        "size": 451584
+      },
+      "Variable175": {
+        "name": "Variable175",
+        "offset": 150528,
+        "size": 50176
+      },
+      "Variable239": {
+        "name": "Variable239",
+        "offset": 1154048,
+        "size": 1806336
+      },
+      "Variable14": {
+        "name": "Variable14",
+        "offset": 1956864,
+        "size": 200704
+      },
+      "Variable98": {
+        "name": "Variable98",
+        "offset": 1555456,
+        "size": 100352
+      },
+      "Variable77": {
+        "name": "Variable77",
+        "offset": 1254400,
+        "size": 401408
+      },
+      "Variable273": {
+        "name": "Variable273",
+        "offset": 200704,
+        "size": 451584
+      },
+      "Variable46": {
+        "name": "Variable46",
+        "offset": 1154048,
+        "size": 802816
+      },
+      "Variable88": {
+        "name": "Variable88",
+        "offset": 150528,
+        "size": 401408
+      },
+      "Variable208": {
+        "name": "Variable208",
+        "offset": 401408,
+        "size": 25088
+      },
+      "Variable243": {
+        "name": "Variable243",
+        "offset": 351232,
+        "size": 1806336
+      },
+      "Variable68": {
+        "name": "Variable68",
+        "offset": 551936,
+        "size": 100352
+      },
+      "Variable277": {
+        "name": "Variable277",
+        "offset": 401408,
+        "size": 451584
+      },
+      "Variable5": {
+        "name": "Variable5",
+        "offset": 1994496,
+        "size": 802816
+      },
+      "Variable246": {
+        "name": "Variable246",
+        "offset": 150528,
+        "size": 200704
+      },
+      "Variable111": {
+        "name": "Variable111",
+        "offset": 903168,
+        "size": 50176
+      },
+      "Variable48": {
+        "name": "Variable48",
+        "offset": 1154048,
+        "size": 802816
+      },
+      "Variable281": {
+        "name": "Variable281",
+        "offset": 200704,
+        "size": 451584
+      },
+      "Variable17": {
+        "name": "Variable17",
+        "offset": 150528,
+        "size": 802816
+      },
+      "Variable101": {
+        "name": "Variable101",
+        "offset": 551936,
+        "size": 401408
+      },
+      "Variable136": {
+        "name": "Variable136",
+        "offset": 351232,
+        "size": 50176
+      },
+      "Variable221": {
+        "name": "Variable221",
+        "offset": 501760,
+        "size": 25088
+      },
+      "Variable179": {
+        "name": "Variable179",
+        "offset": 150528,
+        "size": 50176
+      },
+      "Variable158": {
+        "name": "Variable158",
+        "offset": 150528,
+        "size": 200704
+      },
+      "Variable285": {
+        "name": "Variable285",
+        "offset": 401408,
+        "size": 451584
+      },
+      "Variable211": {
+        "name": "Variable211",
+        "offset": 150528,
+        "size": 100352
+      },
+      "Variable127": {
+        "name": "Variable127",
+        "offset": 652288,
+        "size": 50176
+      },
+      "Variable103": {
+        "name": "Variable103",
+        "offset": 551936,
+        "size": 401408
+      },
+      "Variable289": {
+        "name": "Variable289",
+        "offset": 200704,
+        "size": 451584
+      },
+      "Variable30": {
+        "name": "Variable30",
+        "offset": 953344,
+        "size": 200704
+      },
+      "Variable149": {
+        "name": "Variable149",
+        "offset": 150528,
+        "size": 50176
+      },
+      "Variable213": {
+        "name": "Variable213",
+        "offset": 150528,
+        "size": 100352
+      },
+      "Variable292": {
+        "name": "Variable292",
+        "offset": 451584,
+        "size": 50176
+      },
+      "Variable192": {
+        "name": "Variable192",
+        "offset": 250880,
+        "size": 25088
+      },
+      "Variable20": {
+        "name": "Variable20",
+        "offset": 2157568,
+        "size": 802816
+      },
+      "Variable294": {
+        "name": "Variable294",
+        "offset": 451584,
+        "size": 50176
+      },
+      "Variable224": {
+        "name": "Variable224",
+        "offset": 250880,
+        "size": 100352
+      },
+      "Variable52": {
+        "name": "Variable52",
+        "offset": 1053696,
+        "size": 100352
+      },
+      "Variable182": {
+        "name": "Variable182",
+        "offset": 250880,
+        "size": 200704
+      },
+      "Variable296": {
+        "name": "Variable296",
+        "offset": 275968,
+        "size": 225792
+      },
+      "Variable140": {
+        "name": "Variable140",
+        "offset": 351232,
+        "size": 50176
+      },
+      "Variable123": {
+        "name": "Variable123",
+        "offset": 150528,
+        "size": 50176
+      },
+      "Variable130": {
+        "name": "Variable130",
+        "offset": 150528,
+        "size": 200704
+      },
+      "Variable162": {
+        "name": "Variable162",
+        "offset": 351232,
+        "size": 50176
+      },
+      "Variable22": {
+        "name": "Variable22",
+        "offset": 150528,
+        "size": 802816
+      },
+      "Variable226": {
+        "name": "Variable226",
+        "offset": 250880,
+        "size": 100352
+      },
+      "Variable300": {
+        "name": "Variable300",
+        "offset": 175616,
+        "size": 225792
+      },
+      "Variable33": {
+        "name": "Variable33",
+        "offset": 2157568,
+        "size": 802816
+      },
+      "Variable184": {
+        "name": "Variable184",
+        "offset": 250880,
+        "size": 200704
+      },
+      "Variable107": {
+        "name": "Variable107",
+        "offset": 802816,
+        "size": 50176
+      },
+      "Variable227": {
+        "name": "Variable227",
+        "offset": 150528,
+        "size": 2048
+      },
+      "Variable195": {
+        "name": "Variable195",
+        "offset": 426496,
+        "size": 100352
+      },
+      "Variable153": {
+        "name": "Variable153",
+        "offset": 652288,
+        "size": 50176
+      },
+      "Variable304": {
+        "name": "Variable304",
+        "offset": 275968,
+        "size": 225792
+      },
+      "Variable228": {
+        "name": "Variable228",
+        "offset": 150528,
+        "size": 2048
+      },
+      "Variable132": {
+        "name": "Variable132",
+        "offset": 150528,
+        "size": 200704
+      },
+      "Variable217": {
+        "name": "Variable217",
+        "offset": 250880,
+        "size": 25088
+      },
+      "Variable143": {
+        "name": "Variable143",
+        "offset": 702464,
+        "size": 200704
+      },
+      "Variable56": {
+        "name": "Variable56",
+        "offset": 1053696,
+        "size": 100352
+      },
+      "Variable35": {
+        "name": "Variable35",
+        "offset": 2157568,
+        "size": 802816
+      },
+      "Variable230": {
+        "name": "Variable230",
+        "offset": 152576,
+        "size": 1000
+      },
+      "Variable166": {
+        "name": "Variable166",
+        "offset": 351232,
+        "size": 50176
+      },
+      "Variable26": {
+        "name": "Variable26",
+        "offset": 953344,
+        "size": 200704
+      },
+      "Variable145": {
+        "name": "Variable145",
+        "offset": 702464,
+        "size": 200704
+      },
+      "Variable198": {
+        "name": "Variable198",
+        "offset": 150528,
+        "size": 100352
+      },
+      "Variable114": {
+        "name": "Variable114",
+        "offset": 702464,
+        "size": 200704
+      },
+      "Variable188": {
+        "name": "Variable188",
+        "offset": 250880,
+        "size": 25088
+      }
+    }
+  },
+  "inputs": [
+    "Variable0"
+  ],
+  "outputs": [
+    "Variable230"
+  ]
+}

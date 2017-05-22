@@ -1,0 +1,6267 @@
+{
+  "kernel_source": "\ndnn_fallback_kernel={\n\n\nconvolution_2d: function(input_arrays, output_arrays, param_arrays, option) {\nvar x = input_arrays[0];\nvar y = output_arrays[0];\nvar w = param_arrays[0];\nvar n = option.n | 0;\nvar in_spatial = option.in_spatial;\nvar out_spatial = option.out_spatial;\nvar out_size = option.out_size | 0;\nvar in_size = option.in_size | 0;\nvar padding = option.padding;\nvar stride = option.stride;\nvar ksize = option.ksize;\nvar strides_x = option.strides_x;\nvar strides_w = option.strides_w;\nvar strides_y = option.strides_y;\n\nvar get_x = function(n_, y_, x_, c_) {\n  y_ -= padding[0];\n  x_ -= padding[1];\n  if (y_ < 0 || y_ >= in_spatial[0] || x_ < 0 || x_ >= in_spatial[1]) {\n    return 0.0;\n  }\n  var idx = n_ * strides_x[0] + y_ * strides_x[1] + x_ * strides_x[2] + c_ * strides_x[3];\n  return x[idx];\n};\n\nvar get_w = function(ky_, kx_, in_c, out_c) {\n  var idx = out_c * strides_w[0] + ky_ * strides_w[1] + kx_ * strides_w[2] + in_c * strides_w[3];\n  return w[idx];\n};\n\nvar set_y = function(n_, y_, x_, c_, val) {\n  var idx = n_ * strides_y[0] + y_ * strides_y[1] + x_ * strides_y[2] + c_ * strides_y[3];\n  y[idx] = val;\n};\n\nfor (var batch = 0; batch < n; batch++) {\n  for (var oy = 0; oy < out_spatial[0]; oy++) {\n    for (var ox = 0; ox < out_spatial[1]; ox++) {\n      for (var oc = 0; oc < out_size; oc++) {\n        var sum = 0.0;\n        for (var ky = 0; ky < ksize[0]; ky++) {\n          for (var kx = 0; kx < ksize[1]; kx++) {\n            for (var ic = 0; ic < in_size; ic++) {\n              sum += get_x(batch, oy * stride[0] + ky, ox * stride[1] + kx, ic) * get_w(ky, kx, ic, oc);\n            }\n          }\n        }\n        set_y(batch, oy, ox, oc, sum);\n      }\n    }\n  }\n}\n\n},\n\n\n\naxiswise_bias: function(input_arrays, output_arrays, param_arrays, option) {\nvar x = input_arrays[0];\nvar y = output_arrays[0];\nvar b = param_arrays[0];\nvar n = option.n | 0;\nvar axis_stride = option.axis_stride | 0;\nvar axis_size = option.axis_size | 0;\n\nfor (var i = 0; i < n; i++) {\n    var ch = (i / axis_stride | 0) % axis_size;\n    y[i] = x[i] + b[ch];\n}\n\n},\n\n\n\nrelu: function(input_arrays, output_arrays, param_arrays, option) {\nvar x = input_arrays[0];\nvar y = output_arrays[0];\nvar length = option.length | 0;\n\nfor (var i = 0; i < length; i++) {\n    var val = x[i];\n    y[i] = val >= 0.0 ? val : 0.0;\n}\n\n},\n\n\n\nmax_pooling_2d: function(input_arrays, output_arrays, param_arrays, option) {\nvar x = input_arrays[0];\nvar y = output_arrays[0];\nvar n = option.n | 0;\nvar in_spatial = option.in_spatial;\nvar out_spatial = option.out_spatial;\nvar out_size = option.out_size | 0;\nvar in_size = option.in_size | 0;\nvar padding = option.padding;\nvar stride = option.stride;\nvar ksize = option.ksize;\nvar strides_x = option.strides_x;\nvar strides_y = option.strides_y;\n\nvar get_x = function(n_, y_, x_, c_) {\n  y_ -= padding[0];\n  x_ -= padding[1];\n  if (y_ < 0 || y_ >= in_spatial[0] || x_ < 0 || x_ >= in_spatial[1]) {\n    return -Infinity;\n  }\n  var idx = n_ * strides_x[0] + y_ * strides_x[1] + x_ * strides_x[2] + c_ * strides_x[3];\n  return x[idx];\n};\n\nvar set_y = function(n_, y_, x_, c_, val) {\n  var idx = n_ * strides_y[0] + y_ * strides_y[1] + x_ * strides_y[2] + c_ * strides_y[3];\n  y[idx] = val;\n};\n\nfor (var batch = 0; batch < n; batch++) {\n  for (var oy = 0; oy < out_spatial[0]; oy++) {\n    for (var ox = 0; ox < out_spatial[1]; ox++) {\n      for (var oc = 0; oc < out_size; oc++) {\n        var window_max = -Infinity;\n        for (var ky = 0; ky < ksize[0]; ky++) {\n          for (var kx = 0; kx < ksize[1]; kx++) {\n            var val = get_x(batch, oy * stride[0] + ky, ox * stride[1] + kx, oc);\n            if (val > window_max) {\n              window_max = val;\n            }\n          }\n        }\n        set_y(batch, oy, ox, oc, window_max);\n      }\n    }\n  }\n}\n\n},\n\n\n\nelementwise_sum: function(input_arrays, output_arrays, param_arrays, option) {\nvar x0 = input_arrays[0];\nvar x1 = input_arrays[1];\nvar y = output_arrays[0];\nvar length = option.length | 0;\n\nfor (var i = 0; i < length; i++) {\n    y[i] = x0[i] + x1[i];\n}\n\n},\n\n\n\naverage_pooling_2d: function(input_arrays, output_arrays, param_arrays, option) {\nvar x = input_arrays[0];\nvar y = output_arrays[0];\nvar n = option.n | 0;\nvar in_spatial = option.in_spatial;\nvar out_spatial = option.out_spatial;\nvar out_size = option.out_size | 0;\nvar padding = option.padding;\nvar stride = option.stride;\nvar ksize = option.ksize;\nvar strides_x = option.strides_x;\nvar strides_y = option.strides_y;\nvar window_area_inv = 1.0 / (ksize[0] * ksize[1]);\n\nvar get_x = function(n_, y_, x_, c_) {\n  y_ -= padding[0];\n  x_ -= padding[1];\n  if (y_ < 0 || y_ >= in_spatial[0] || x_ < 0 || x_ >= in_spatial[1]) {\n    return 0.0;\n  }\n  var idx = n_ * strides_x[0] + y_ * strides_x[1] + x_ * strides_x[2] + c_ * strides_x[3];\n  return x[idx];\n};\n\nvar set_y = function(n_, y_, x_, c_, val) {\n  var idx = n_ * strides_y[0] + y_ * strides_y[1] + x_ * strides_y[2] + c_ * strides_y[3];\n  y[idx] = val;\n};\n\nfor (var batch = 0; batch < n; batch++) {\n  for (var oy = 0; oy < out_spatial[0]; oy++) {\n    for (var ox = 0; ox < out_spatial[1]; ox++) {\n      for (var oc = 0; oc < out_size; oc++) {\n        var sum = 0.0;\n        for (var ky = 0; ky < ksize[0]; ky++) {\n          for (var kx = 0; kx < ksize[1]; kx++) {\n            sum += get_x(batch, oy * stride[0] + ky, ox * stride[1] + kx, oc);\n          }\n        }\n        set_y(batch, oy, ox, oc, sum * window_area_inv);\n      }\n    }\n  }\n}\n\n},\n\n\n\nflatten: function(input_arrays, output_arrays, param_arrays, option) {\nvar x = input_arrays[0];\nvar y = output_arrays[0];\nvar length = option.length | 0;\n\nfor (var i = 0; i < length; i++) {\n  y[i] = x[i];\n}\n\n},\n\n\n\nlinear: function(input_arrays, output_arrays, param_arrays, option) {\nvar x = input_arrays[0];\nvar y = output_arrays[0];\nvar w = param_arrays[0];\nvar m = option.m | 0;\nvar n = option.n | 0;\nvar k = option.k | 0;\nvar x_k_stride = option.x_k_stride | 0;\nvar x_m_stride = option.x_m_stride | 0;\nvar w_k_stride = option.w_k_stride | 0;\nvar w_n_stride = option.w_n_stride | 0;\n\nfor (var i = 0; i < m; i++) {\n  for (var j = 0; j < n; j++) {\n    var sum = 0.0;\n    for (var s = 0; s < k; s++) {\n      sum += x[i * x_m_stride + s * x_k_stride] * w[s * w_k_stride + j * w_n_stride];\n    }\n    y[i * n + j] = sum;\n  }\n}\n\n},\n\n\n\n\n};\n",
+  "exec_infos": [
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v235"
+      ],
+      "outputs": [
+        "v244"
+      ],
+      "weights": [
+        "v100"
+      ],
+      "call_option": {
+        "in_spatial": [
+          224,
+          224
+        ],
+        "n": 1,
+        "out_size": 64,
+        "in_size": 3,
+        "out_spatial": [
+          112,
+          112
+        ],
+        "strides_x": [
+          150528,
+          672,
+          3,
+          1
+        ],
+        "strides_w": [
+          3,
+          1344,
+          192,
+          1
+        ],
+        "strides_y": [
+          802816,
+          7168,
+          64,
+          1
+        ],
+        "padding": [
+          3,
+          3
+        ],
+        "stride": [
+          2,
+          2
+        ],
+        "ksize": [
+          7,
+          7
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v244"
+      ],
+      "outputs": [
+        "v278"
+      ],
+      "weights": [
+        "v195"
+      ],
+      "call_option": {
+        "n": 802816,
+        "axis_stride": 1,
+        "axis_size": 64
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v278"
+      ],
+      "outputs": [
+        "v284"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 802816
+      }
+    },
+    {
+      "entry_func_name": "max_pooling_2d",
+      "inputs": [
+        "v284"
+      ],
+      "outputs": [
+        "v186"
+      ],
+      "weights": [],
+      "call_option": {
+        "in_spatial": [
+          112,
+          112
+        ],
+        "n": 1,
+        "out_size": 64,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          802816,
+          7168,
+          64,
+          1
+        ],
+        "strides_y": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          2,
+          2
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v186"
+      ],
+      "outputs": [
+        "v22"
+      ],
+      "weights": [
+        "v88"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 64,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "strides_w": [
+          64,
+          16384,
+          16384,
+          1
+        ],
+        "strides_y": [
+          802816,
+          14336,
+          256,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v22"
+      ],
+      "outputs": [
+        "v63"
+      ],
+      "weights": [
+        "v78"
+      ],
+      "call_option": {
+        "n": 802816,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v186"
+      ],
+      "outputs": [
+        "v190"
+      ],
+      "weights": [
+        "v189"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 64,
+        "in_size": 64,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "strides_w": [
+          64,
+          4096,
+          4096,
+          1
+        ],
+        "strides_y": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v190"
+      ],
+      "outputs": [
+        "v216"
+      ],
+      "weights": [
+        "v191"
+      ],
+      "call_option": {
+        "n": 200704,
+        "axis_stride": 1,
+        "axis_size": 64
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v216"
+      ],
+      "outputs": [
+        "v223"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v223"
+      ],
+      "outputs": [
+        "v231"
+      ],
+      "weights": [
+        "v204"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 64,
+        "in_size": 64,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "strides_w": [
+          64,
+          12288,
+          4096,
+          1
+        ],
+        "strides_y": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v231"
+      ],
+      "outputs": [
+        "v254"
+      ],
+      "weights": [
+        "v141"
+      ],
+      "call_option": {
+        "n": 200704,
+        "axis_stride": 1,
+        "axis_size": 64
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v254"
+      ],
+      "outputs": [
+        "v261"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v261"
+      ],
+      "outputs": [
+        "v268"
+      ],
+      "weights": [
+        "v219"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 64,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "strides_w": [
+          64,
+          16384,
+          16384,
+          1
+        ],
+        "strides_y": [
+          802816,
+          14336,
+          256,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v268"
+      ],
+      "outputs": [
+        "v13"
+      ],
+      "weights": [
+        "v109"
+      ],
+      "call_option": {
+        "n": 802816,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v13",
+        "v63"
+      ],
+      "outputs": [
+        "v79"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 802816
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v79"
+      ],
+      "outputs": [
+        "v97"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 802816
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v97"
+      ],
+      "outputs": [
+        "v110"
+      ],
+      "weights": [
+        "v113"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 64,
+        "in_size": 256,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          802816,
+          14336,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          16384,
+          16384,
+          1
+        ],
+        "strides_y": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v110"
+      ],
+      "outputs": [
+        "v156"
+      ],
+      "weights": [
+        "v246"
+      ],
+      "call_option": {
+        "n": 200704,
+        "axis_stride": 1,
+        "axis_size": 64
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v156"
+      ],
+      "outputs": [
+        "v169"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v169"
+      ],
+      "outputs": [
+        "v0"
+      ],
+      "weights": [
+        "v127"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 64,
+        "in_size": 64,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "strides_w": [
+          64,
+          12288,
+          4096,
+          1
+        ],
+        "strides_y": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v0"
+      ],
+      "outputs": [
+        "v40"
+      ],
+      "weights": [
+        "v86"
+      ],
+      "call_option": {
+        "n": 200704,
+        "axis_stride": 1,
+        "axis_size": 64
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v40"
+      ],
+      "outputs": [
+        "v53"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v53"
+      ],
+      "outputs": [
+        "v64"
+      ],
+      "weights": [
+        "v147"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 64,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "strides_w": [
+          64,
+          16384,
+          16384,
+          1
+        ],
+        "strides_y": [
+          802816,
+          14336,
+          256,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v64"
+      ],
+      "outputs": [
+        "v106"
+      ],
+      "weights": [
+        "v271"
+      ],
+      "call_option": {
+        "n": 802816,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v106",
+        "v97"
+      ],
+      "outputs": [
+        "v124"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 802816
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v124"
+      ],
+      "outputs": [
+        "v148"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 802816
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v148"
+      ],
+      "outputs": [
+        "v157"
+      ],
+      "weights": [
+        "v166"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 64,
+        "in_size": 256,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          802816,
+          14336,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          16384,
+          16384,
+          1
+        ],
+        "strides_y": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v157"
+      ],
+      "outputs": [
+        "v192"
+      ],
+      "weights": [
+        "v135"
+      ],
+      "call_option": {
+        "n": 200704,
+        "axis_stride": 1,
+        "axis_size": 64
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v192"
+      ],
+      "outputs": [
+        "v200"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v200"
+      ],
+      "outputs": [
+        "v207"
+      ],
+      "weights": [
+        "v1"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 64,
+        "in_size": 64,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "strides_w": [
+          64,
+          12288,
+          4096,
+          1
+        ],
+        "strides_y": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v207"
+      ],
+      "outputs": [
+        "v232"
+      ],
+      "weights": [
+        "v19"
+      ],
+      "call_option": {
+        "n": 200704,
+        "axis_stride": 1,
+        "axis_size": 64
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v232"
+      ],
+      "outputs": [
+        "v241"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v241"
+      ],
+      "outputs": [
+        "v248"
+      ],
+      "weights": [
+        "v16"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 64,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "strides_w": [
+          64,
+          16384,
+          16384,
+          1
+        ],
+        "strides_y": [
+          802816,
+          14336,
+          256,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v248"
+      ],
+      "outputs": [
+        "v269"
+      ],
+      "weights": [
+        "v36"
+      ],
+      "call_option": {
+        "n": 802816,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v269",
+        "v148"
+      ],
+      "outputs": [
+        "v280"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 802816
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v280"
+      ],
+      "outputs": [
+        "v184"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 802816
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v184"
+      ],
+      "outputs": [
+        "v193"
+      ],
+      "weights": [
+        "v37"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 128,
+        "in_size": 256,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          802816,
+          14336,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          32768,
+          32768,
+          1
+        ],
+        "strides_y": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          2,
+          2
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v193"
+      ],
+      "outputs": [
+        "v217"
+      ],
+      "weights": [
+        "v51"
+      ],
+      "call_option": {
+        "n": 100352,
+        "axis_stride": 1,
+        "axis_size": 128
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v217"
+      ],
+      "outputs": [
+        "v224"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 100352
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v224"
+      ],
+      "outputs": [
+        "v233"
+      ],
+      "weights": [
+        "v50"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 128,
+        "in_size": 128,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "strides_w": [
+          128,
+          49152,
+          16384,
+          1
+        ],
+        "strides_y": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v233"
+      ],
+      "outputs": [
+        "v255"
+      ],
+      "weights": [
+        "v70"
+      ],
+      "call_option": {
+        "n": 100352,
+        "axis_stride": 1,
+        "axis_size": 128
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v255"
+      ],
+      "outputs": [
+        "v262"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 100352
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v262"
+      ],
+      "outputs": [
+        "v270"
+      ],
+      "weights": [
+        "v66"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 512,
+        "in_size": 128,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "strides_w": [
+          128,
+          65536,
+          65536,
+          1
+        ],
+        "strides_y": [
+          401408,
+          14336,
+          512,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v270"
+      ],
+      "outputs": [
+        "v196"
+      ],
+      "weights": [
+        "v85"
+      ],
+      "call_option": {
+        "n": 401408,
+        "axis_stride": 1,
+        "axis_size": 512
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v184"
+      ],
+      "outputs": [
+        "v276"
+      ],
+      "weights": [
+        "v84"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 512,
+        "in_size": 256,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          802816,
+          14336,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          131072,
+          131072,
+          1
+        ],
+        "strides_y": [
+          401408,
+          14336,
+          512,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          2,
+          2
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v276"
+      ],
+      "outputs": [
+        "v220"
+      ],
+      "weights": [
+        "v103"
+      ],
+      "call_option": {
+        "n": 401408,
+        "axis_stride": 1,
+        "axis_size": 512
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v196",
+        "v220"
+      ],
+      "outputs": [
+        "v230"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 401408
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v230"
+      ],
+      "outputs": [
+        "v245"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 401408
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v245"
+      ],
+      "outputs": [
+        "v251"
+      ],
+      "weights": [
+        "v105"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 128,
+        "in_size": 512,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          401408,
+          14336,
+          512,
+          1
+        ],
+        "strides_w": [
+          512,
+          65536,
+          65536,
+          1
+        ],
+        "strides_y": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v251"
+      ],
+      "outputs": [
+        "v272"
+      ],
+      "weights": [
+        "v123"
+      ],
+      "call_option": {
+        "n": 100352,
+        "axis_stride": 1,
+        "axis_size": 128
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v272"
+      ],
+      "outputs": [
+        "v283"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 100352
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v283"
+      ],
+      "outputs": [
+        "v2"
+      ],
+      "weights": [
+        "v121"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 128,
+        "in_size": 128,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "strides_w": [
+          128,
+          49152,
+          16384,
+          1
+        ],
+        "strides_y": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v2"
+      ],
+      "outputs": [
+        "v41"
+      ],
+      "weights": [
+        "v145"
+      ],
+      "call_option": {
+        "n": 100352,
+        "axis_stride": 1,
+        "axis_size": 128
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v41"
+      ],
+      "outputs": [
+        "v54"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 100352
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v54"
+      ],
+      "outputs": [
+        "v65"
+      ],
+      "weights": [
+        "v165"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 512,
+        "in_size": 128,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "strides_w": [
+          128,
+          65536,
+          65536,
+          1
+        ],
+        "strides_y": [
+          401408,
+          14336,
+          512,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v65"
+      ],
+      "outputs": [
+        "v107"
+      ],
+      "weights": [
+        "v162"
+      ],
+      "call_option": {
+        "n": 401408,
+        "axis_stride": 1,
+        "axis_size": 512
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v107",
+        "v245"
+      ],
+      "outputs": [
+        "v125"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 401408
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v125"
+      ],
+      "outputs": [
+        "v149"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 401408
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v149"
+      ],
+      "outputs": [
+        "v158"
+      ],
+      "weights": [
+        "v9"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 128,
+        "in_size": 512,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          401408,
+          14336,
+          512,
+          1
+        ],
+        "strides_w": [
+          512,
+          65536,
+          65536,
+          1
+        ],
+        "strides_y": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v158"
+      ],
+      "outputs": [
+        "v194"
+      ],
+      "weights": [
+        "v178"
+      ],
+      "call_option": {
+        "n": 100352,
+        "axis_stride": 1,
+        "axis_size": 128
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v194"
+      ],
+      "outputs": [
+        "v201"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 100352
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v201"
+      ],
+      "outputs": [
+        "v208"
+      ],
+      "weights": [
+        "v21"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 128,
+        "in_size": 128,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "strides_w": [
+          128,
+          49152,
+          16384,
+          1
+        ],
+        "strides_y": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v208"
+      ],
+      "outputs": [
+        "v234"
+      ],
+      "weights": [
+        "v14"
+      ],
+      "call_option": {
+        "n": 100352,
+        "axis_stride": 1,
+        "axis_size": 128
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v234"
+      ],
+      "outputs": [
+        "v242"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 100352
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v242"
+      ],
+      "outputs": [
+        "v249"
+      ],
+      "weights": [
+        "v38"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 512,
+        "in_size": 128,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "strides_w": [
+          128,
+          65536,
+          65536,
+          1
+        ],
+        "strides_y": [
+          401408,
+          14336,
+          512,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v249"
+      ],
+      "outputs": [
+        "v273"
+      ],
+      "weights": [
+        "v32"
+      ],
+      "call_option": {
+        "n": 401408,
+        "axis_stride": 1,
+        "axis_size": 512
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v273",
+        "v149"
+      ],
+      "outputs": [
+        "v281"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 401408
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v281"
+      ],
+      "outputs": [
+        "v185"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 401408
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v185"
+      ],
+      "outputs": [
+        "v197"
+      ],
+      "weights": [
+        "v61"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 128,
+        "in_size": 512,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          401408,
+          14336,
+          512,
+          1
+        ],
+        "strides_w": [
+          512,
+          65536,
+          65536,
+          1
+        ],
+        "strides_y": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v197"
+      ],
+      "outputs": [
+        "v218"
+      ],
+      "weights": [
+        "v48"
+      ],
+      "call_option": {
+        "n": 100352,
+        "axis_stride": 1,
+        "axis_size": 128
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v218"
+      ],
+      "outputs": [
+        "v225"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 100352
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v225"
+      ],
+      "outputs": [
+        "v236"
+      ],
+      "weights": [
+        "v73"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 128,
+        "in_size": 128,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "strides_w": [
+          128,
+          49152,
+          16384,
+          1
+        ],
+        "strides_y": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v236"
+      ],
+      "outputs": [
+        "v256"
+      ],
+      "weights": [
+        "v67"
+      ],
+      "call_option": {
+        "n": 100352,
+        "axis_stride": 1,
+        "axis_size": 128
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v256"
+      ],
+      "outputs": [
+        "v263"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 100352
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v263"
+      ],
+      "outputs": [
+        "v274"
+      ],
+      "weights": [
+        "v89"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 512,
+        "in_size": 128,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "strides_w": [
+          128,
+          65536,
+          65536,
+          1
+        ],
+        "strides_y": [
+          401408,
+          14336,
+          512,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v274"
+      ],
+      "outputs": [
+        "v15"
+      ],
+      "weights": [
+        "v81"
+      ],
+      "call_option": {
+        "n": 401408,
+        "axis_stride": 1,
+        "axis_size": 512
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v15",
+        "v185"
+      ],
+      "outputs": [
+        "v26"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 401408
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v26"
+      ],
+      "outputs": [
+        "v47"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 401408
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v47"
+      ],
+      "outputs": [
+        "v55"
+      ],
+      "weights": [
+        "v122"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 512,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          401408,
+          14336,
+          512,
+          1
+        ],
+        "strides_w": [
+          512,
+          131072,
+          131072,
+          1
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          2,
+          2
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v55"
+      ],
+      "outputs": [
+        "v95"
+      ],
+      "weights": [
+        "v98"
+      ],
+      "call_option": {
+        "n": 50176,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v95"
+      ],
+      "outputs": [
+        "v114"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v114"
+      ],
+      "outputs": [
+        "v126"
+      ],
+      "weights": [
+        "v136"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 256,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          196608,
+          65536,
+          1
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v126"
+      ],
+      "outputs": [
+        "v167"
+      ],
+      "weights": [
+        "v119"
+      ],
+      "call_option": {
+        "n": 50176,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v167"
+      ],
+      "outputs": [
+        "v4"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v4"
+      ],
+      "outputs": [
+        "v259"
+      ],
+      "weights": [
+        "v153"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 1024,
+        "in_size": 256,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          262144,
+          262144,
+          1
+        ],
+        "strides_y": [
+          200704,
+          14336,
+          1024,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v259"
+      ],
+      "outputs": [
+        "v172"
+      ],
+      "weights": [
+        "v138"
+      ],
+      "call_option": {
+        "n": 200704,
+        "axis_stride": 1,
+        "axis_size": 1024
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v47"
+      ],
+      "outputs": [
+        "v170"
+      ],
+      "weights": [
+        "v182"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 1024,
+        "in_size": 512,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          401408,
+          14336,
+          512,
+          1
+        ],
+        "strides_w": [
+          512,
+          524288,
+          524288,
+          1
+        ],
+        "strides_y": [
+          200704,
+          14336,
+          1024,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          2,
+          2
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v170"
+      ],
+      "outputs": [
+        "v187"
+      ],
+      "weights": [
+        "v159"
+      ],
+      "call_option": {
+        "n": 200704,
+        "axis_stride": 1,
+        "axis_size": 1024
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v172",
+        "v187"
+      ],
+      "outputs": [
+        "v214"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v214"
+      ],
+      "outputs": [
+        "v221"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v221"
+      ],
+      "outputs": [
+        "v237"
+      ],
+      "weights": [
+        "v212"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 1024,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          200704,
+          14336,
+          1024,
+          1
+        ],
+        "strides_w": [
+          1024,
+          262144,
+          262144,
+          1
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v237"
+      ],
+      "outputs": [
+        "v99"
+      ],
+      "weights": [
+        "v173"
+      ],
+      "call_option": {
+        "n": 50176,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v99"
+      ],
+      "outputs": [
+        "v90"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v90"
+      ],
+      "outputs": [
+        "v139"
+      ],
+      "weights": [
+        "v209"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 256,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          196608,
+          65536,
+          1
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v139"
+      ],
+      "outputs": [
+        "v28"
+      ],
+      "weights": [
+        "v10"
+      ],
+      "call_option": {
+        "n": 50176,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v28"
+      ],
+      "outputs": [
+        "v44"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v44"
+      ],
+      "outputs": [
+        "v52"
+      ],
+      "weights": [
+        "v213"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 1024,
+        "in_size": 256,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          262144,
+          262144,
+          1
+        ],
+        "strides_y": [
+          200704,
+          14336,
+          1024,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v52"
+      ],
+      "outputs": [
+        "v93"
+      ],
+      "weights": [
+        "v25"
+      ],
+      "call_option": {
+        "n": 200704,
+        "axis_stride": 1,
+        "axis_size": 1024
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v93",
+        "v221"
+      ],
+      "outputs": [
+        "v108"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v108"
+      ],
+      "outputs": [
+        "v130"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v130"
+      ],
+      "outputs": [
+        "v142"
+      ],
+      "weights": [
+        "v228"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 1024,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          200704,
+          14336,
+          1024,
+          1
+        ],
+        "strides_w": [
+          1024,
+          262144,
+          262144,
+          1
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v142"
+      ],
+      "outputs": [
+        "v5"
+      ],
+      "weights": [
+        "v43"
+      ],
+      "call_option": {
+        "n": 50176,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v5"
+      ],
+      "outputs": [
+        "v17"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v17"
+      ],
+      "outputs": [
+        "v27"
+      ],
+      "weights": [
+        "v240"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 256,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          196608,
+          65536,
+          1
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v27"
+      ],
+      "outputs": [
+        "v68"
+      ],
+      "weights": [
+        "v60"
+      ],
+      "call_option": {
+        "n": 50176,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v68"
+      ],
+      "outputs": [
+        "v82"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v82"
+      ],
+      "outputs": [
+        "v91"
+      ],
+      "weights": [
+        "v247"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 1024,
+        "in_size": 256,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          262144,
+          262144,
+          1
+        ],
+        "strides_y": [
+          200704,
+          14336,
+          1024,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v91"
+      ],
+      "outputs": [
+        "v140"
+      ],
+      "weights": [
+        "v77"
+      ],
+      "call_option": {
+        "n": 200704,
+        "axis_stride": 1,
+        "axis_size": 1024
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v140",
+        "v130"
+      ],
+      "outputs": [
+        "v150"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v150"
+      ],
+      "outputs": [
+        "v171"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v171"
+      ],
+      "outputs": [
+        "v3"
+      ],
+      "weights": [
+        "v258"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 1024,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          200704,
+          14336,
+          1024,
+          1
+        ],
+        "strides_w": [
+          1024,
+          262144,
+          262144,
+          1
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v3"
+      ],
+      "outputs": [
+        "v42"
+      ],
+      "weights": [
+        "v92"
+      ],
+      "call_option": {
+        "n": 50176,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v42"
+      ],
+      "outputs": [
+        "v56"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v56"
+      ],
+      "outputs": [
+        "v69"
+      ],
+      "weights": [
+        "v265"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 256,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          196608,
+          65536,
+          1
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v69"
+      ],
+      "outputs": [
+        "v111"
+      ],
+      "weights": [
+        "v112"
+      ],
+      "call_option": {
+        "n": 50176,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v111"
+      ],
+      "outputs": [
+        "v128"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v128"
+      ],
+      "outputs": [
+        "v137"
+      ],
+      "weights": [
+        "v279"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 1024,
+        "in_size": 256,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          262144,
+          262144,
+          1
+        ],
+        "strides_y": [
+          200704,
+          14336,
+          1024,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v137"
+      ],
+      "outputs": [
+        "v179"
+      ],
+      "weights": [
+        "v134"
+      ],
+      "call_option": {
+        "n": 200704,
+        "axis_stride": 1,
+        "axis_size": 1024
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v179",
+        "v171"
+      ],
+      "outputs": [
+        "v11"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v11"
+      ],
+      "outputs": [
+        "v29"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v29"
+      ],
+      "outputs": [
+        "v39"
+      ],
+      "weights": [
+        "v7"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 1024,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          200704,
+          14336,
+          1024,
+          1
+        ],
+        "strides_w": [
+          1024,
+          262144,
+          262144,
+          1
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v39"
+      ],
+      "outputs": [
+        "v80"
+      ],
+      "weights": [
+        "v151"
+      ],
+      "call_option": {
+        "n": 50176,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v80"
+      ],
+      "outputs": [
+        "v94"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v94"
+      ],
+      "outputs": [
+        "v104"
+      ],
+      "weights": [
+        "v18"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 256,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          196608,
+          65536,
+          1
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v104"
+      ],
+      "outputs": [
+        "v152"
+      ],
+      "weights": [
+        "v174"
+      ],
+      "call_option": {
+        "n": 50176,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v152"
+      ],
+      "outputs": [
+        "v164"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v164"
+      ],
+      "outputs": [
+        "v175"
+      ],
+      "weights": [
+        "v33"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 1024,
+        "in_size": 256,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          262144,
+          262144,
+          1
+        ],
+        "strides_y": [
+          200704,
+          14336,
+          1024,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v175"
+      ],
+      "outputs": [
+        "v205"
+      ],
+      "weights": [
+        "v183"
+      ],
+      "call_option": {
+        "n": 200704,
+        "axis_stride": 1,
+        "axis_size": 1024
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v205",
+        "v29"
+      ],
+      "outputs": [
+        "v210"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v210"
+      ],
+      "outputs": [
+        "v222"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v222"
+      ],
+      "outputs": [
+        "v229"
+      ],
+      "weights": [
+        "v57"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 1024,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          200704,
+          14336,
+          1024,
+          1
+        ],
+        "strides_w": [
+          1024,
+          262144,
+          262144,
+          1
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v229"
+      ],
+      "outputs": [
+        "v253"
+      ],
+      "weights": [
+        "v198"
+      ],
+      "call_option": {
+        "n": 50176,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v253"
+      ],
+      "outputs": [
+        "v260"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v260"
+      ],
+      "outputs": [
+        "v267"
+      ],
+      "weights": [
+        "v71"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 256,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          196608,
+          65536,
+          1
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v267"
+      ],
+      "outputs": [
+        "v12"
+      ],
+      "weights": [
+        "v206"
+      ],
+      "call_option": {
+        "n": 50176,
+        "axis_stride": 1,
+        "axis_size": 256
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v12"
+      ],
+      "outputs": [
+        "v23"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v23"
+      ],
+      "outputs": [
+        "v34"
+      ],
+      "weights": [
+        "v143"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 1024,
+        "in_size": 256,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "strides_w": [
+          256,
+          262144,
+          262144,
+          1
+        ],
+        "strides_y": [
+          200704,
+          14336,
+          1024,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v34"
+      ],
+      "outputs": [
+        "v76"
+      ],
+      "weights": [
+        "v215"
+      ],
+      "call_option": {
+        "n": 200704,
+        "axis_stride": 1,
+        "axis_size": 1024
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v76",
+        "v222"
+      ],
+      "outputs": [
+        "v87"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v87"
+      ],
+      "outputs": [
+        "v252"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 200704
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v252"
+      ],
+      "outputs": [
+        "v176"
+      ],
+      "weights": [
+        "v160"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 512,
+        "in_size": 1024,
+        "out_spatial": [
+          7,
+          7
+        ],
+        "strides_x": [
+          200704,
+          14336,
+          1024,
+          1
+        ],
+        "strides_w": [
+          1024,
+          524288,
+          524288,
+          1
+        ],
+        "strides_y": [
+          25088,
+          3584,
+          512,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          2,
+          2
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v176"
+      ],
+      "outputs": [
+        "v35"
+      ],
+      "weights": [
+        "v226"
+      ],
+      "call_option": {
+        "n": 25088,
+        "axis_stride": 1,
+        "axis_size": 512
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v35"
+      ],
+      "outputs": [
+        "v49"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 25088
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v49"
+      ],
+      "outputs": [
+        "v58"
+      ],
+      "weights": [
+        "v168"
+      ],
+      "call_option": {
+        "in_spatial": [
+          7,
+          7
+        ],
+        "n": 1,
+        "out_size": 512,
+        "in_size": 512,
+        "out_spatial": [
+          7,
+          7
+        ],
+        "strides_x": [
+          25088,
+          3584,
+          512,
+          1
+        ],
+        "strides_w": [
+          512,
+          786432,
+          262144,
+          1
+        ],
+        "strides_y": [
+          25088,
+          3584,
+          512,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v58"
+      ],
+      "outputs": [
+        "v101"
+      ],
+      "weights": [
+        "v239"
+      ],
+      "call_option": {
+        "n": 25088,
+        "axis_stride": 1,
+        "axis_size": 512
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v101"
+      ],
+      "outputs": [
+        "v116"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 25088
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v116"
+      ],
+      "outputs": [
+        "v129"
+      ],
+      "weights": [
+        "v8"
+      ],
+      "call_option": {
+        "in_spatial": [
+          7,
+          7
+        ],
+        "n": 1,
+        "out_size": 2048,
+        "in_size": 512,
+        "out_spatial": [
+          7,
+          7
+        ],
+        "strides_x": [
+          25088,
+          3584,
+          512,
+          1
+        ],
+        "strides_w": [
+          512,
+          1048576,
+          1048576,
+          1
+        ],
+        "strides_y": [
+          100352,
+          14336,
+          2048,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v129"
+      ],
+      "outputs": [
+        "v177"
+      ],
+      "weights": [
+        "v250"
+      ],
+      "call_option": {
+        "n": 100352,
+        "axis_stride": 1,
+        "axis_size": 2048
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v252"
+      ],
+      "outputs": [
+        "v120"
+      ],
+      "weights": [
+        "v24"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 2048,
+        "in_size": 1024,
+        "out_spatial": [
+          7,
+          7
+        ],
+        "strides_x": [
+          200704,
+          14336,
+          1024,
+          1
+        ],
+        "strides_w": [
+          1024,
+          2097152,
+          2097152,
+          1
+        ],
+        "strides_y": [
+          100352,
+          14336,
+          2048,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          2,
+          2
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v120"
+      ],
+      "outputs": [
+        "v163"
+      ],
+      "weights": [
+        "v257"
+      ],
+      "call_option": {
+        "n": 100352,
+        "axis_stride": 1,
+        "axis_size": 2048
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v177",
+        "v163"
+      ],
+      "outputs": [
+        "v181"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 100352
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v181"
+      ],
+      "outputs": [
+        "v199"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 100352
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v199"
+      ],
+      "outputs": [
+        "v202"
+      ],
+      "weights": [
+        "v46"
+      ],
+      "call_option": {
+        "in_spatial": [
+          7,
+          7
+        ],
+        "n": 1,
+        "out_size": 512,
+        "in_size": 2048,
+        "out_spatial": [
+          7,
+          7
+        ],
+        "strides_x": [
+          100352,
+          14336,
+          2048,
+          1
+        ],
+        "strides_w": [
+          2048,
+          1048576,
+          1048576,
+          1
+        ],
+        "strides_y": [
+          25088,
+          3584,
+          512,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v202"
+      ],
+      "outputs": [
+        "v227"
+      ],
+      "weights": [
+        "v264"
+      ],
+      "call_option": {
+        "n": 25088,
+        "axis_stride": 1,
+        "axis_size": 512
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v227"
+      ],
+      "outputs": [
+        "v238"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 25088
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v238"
+      ],
+      "outputs": [
+        "v243"
+      ],
+      "weights": [
+        "v59"
+      ],
+      "call_option": {
+        "in_spatial": [
+          7,
+          7
+        ],
+        "n": 1,
+        "out_size": 512,
+        "in_size": 512,
+        "out_spatial": [
+          7,
+          7
+        ],
+        "strides_x": [
+          25088,
+          3584,
+          512,
+          1
+        ],
+        "strides_w": [
+          512,
+          786432,
+          262144,
+          1
+        ],
+        "strides_y": [
+          25088,
+          3584,
+          512,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v243"
+      ],
+      "outputs": [
+        "v266"
+      ],
+      "weights": [
+        "v277"
+      ],
+      "call_option": {
+        "n": 25088,
+        "axis_stride": 1,
+        "axis_size": 512
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v266"
+      ],
+      "outputs": [
+        "v275"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 25088
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v275"
+      ],
+      "outputs": [
+        "v282"
+      ],
+      "weights": [
+        "v75"
+      ],
+      "call_option": {
+        "in_spatial": [
+          7,
+          7
+        ],
+        "n": 1,
+        "out_size": 2048,
+        "in_size": 512,
+        "out_spatial": [
+          7,
+          7
+        ],
+        "strides_x": [
+          25088,
+          3584,
+          512,
+          1
+        ],
+        "strides_w": [
+          512,
+          1048576,
+          1048576,
+          1
+        ],
+        "strides_y": [
+          100352,
+          14336,
+          2048,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v282"
+      ],
+      "outputs": [
+        "v30"
+      ],
+      "weights": [
+        "v180"
+      ],
+      "call_option": {
+        "n": 100352,
+        "axis_stride": 1,
+        "axis_size": 2048
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v30",
+        "v199"
+      ],
+      "outputs": [
+        "v45"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 100352
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v45"
+      ],
+      "outputs": [
+        "v62"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 100352
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v62"
+      ],
+      "outputs": [
+        "v72"
+      ],
+      "weights": [
+        "v96"
+      ],
+      "call_option": {
+        "in_spatial": [
+          7,
+          7
+        ],
+        "n": 1,
+        "out_size": 512,
+        "in_size": 2048,
+        "out_spatial": [
+          7,
+          7
+        ],
+        "strides_x": [
+          100352,
+          14336,
+          2048,
+          1
+        ],
+        "strides_w": [
+          2048,
+          1048576,
+          1048576,
+          1
+        ],
+        "strides_y": [
+          25088,
+          3584,
+          512,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v72"
+      ],
+      "outputs": [
+        "v115"
+      ],
+      "weights": [
+        "v188"
+      ],
+      "call_option": {
+        "n": 25088,
+        "axis_stride": 1,
+        "axis_size": 512
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v115"
+      ],
+      "outputs": [
+        "v131"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 25088
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v131"
+      ],
+      "outputs": [
+        "v144"
+      ],
+      "weights": [
+        "v117"
+      ],
+      "call_option": {
+        "in_spatial": [
+          7,
+          7
+        ],
+        "n": 1,
+        "out_size": 512,
+        "in_size": 512,
+        "out_spatial": [
+          7,
+          7
+        ],
+        "strides_x": [
+          25088,
+          3584,
+          512,
+          1
+        ],
+        "strides_w": [
+          512,
+          786432,
+          262144,
+          1
+        ],
+        "strides_y": [
+          25088,
+          3584,
+          512,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v144"
+      ],
+      "outputs": [
+        "v6"
+      ],
+      "weights": [
+        "v203"
+      ],
+      "call_option": {
+        "n": 25088,
+        "axis_stride": 1,
+        "axis_size": 512
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v6"
+      ],
+      "outputs": [
+        "v20"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 25088
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "v20"
+      ],
+      "outputs": [
+        "v31"
+      ],
+      "weights": [
+        "v132"
+      ],
+      "call_option": {
+        "in_spatial": [
+          7,
+          7
+        ],
+        "n": 1,
+        "out_size": 2048,
+        "in_size": 512,
+        "out_spatial": [
+          7,
+          7
+        ],
+        "strides_x": [
+          25088,
+          3584,
+          512,
+          1
+        ],
+        "strides_w": [
+          512,
+          1048576,
+          1048576,
+          1
+        ],
+        "strides_y": [
+          100352,
+          14336,
+          2048,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v31"
+      ],
+      "outputs": [
+        "v74"
+      ],
+      "weights": [
+        "v211"
+      ],
+      "call_option": {
+        "n": 100352,
+        "axis_stride": 1,
+        "axis_size": 2048
+      }
+    },
+    {
+      "entry_func_name": "elementwise_sum",
+      "inputs": [
+        "v74",
+        "v62"
+      ],
+      "outputs": [
+        "v83"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 100352
+      }
+    },
+    {
+      "entry_func_name": "relu",
+      "inputs": [
+        "v83"
+      ],
+      "outputs": [
+        "v102"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 100352
+      }
+    },
+    {
+      "entry_func_name": "average_pooling_2d",
+      "inputs": [
+        "v102"
+      ],
+      "outputs": [
+        "v118"
+      ],
+      "weights": [],
+      "call_option": {
+        "in_spatial": [
+          7,
+          7
+        ],
+        "n": 1,
+        "out_size": 2048,
+        "out_spatial": [
+          1,
+          1
+        ],
+        "strides_x": [
+          100352,
+          14336,
+          2048,
+          1
+        ],
+        "strides_y": [
+          2048,
+          2048,
+          2048,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          7,
+          7
+        ]
+      }
+    },
+    {
+      "entry_func_name": "flatten",
+      "inputs": [
+        "v118"
+      ],
+      "outputs": [
+        "v133"
+      ],
+      "weights": [],
+      "call_option": {
+        "length": 2048
+      }
+    },
+    {
+      "entry_func_name": "linear",
+      "inputs": [
+        "v133"
+      ],
+      "outputs": [
+        "v146"
+      ],
+      "weights": [
+        "v154"
+      ],
+      "call_option": {
+        "m": 1,
+        "n": 1000,
+        "k": 2048,
+        "x_k_stride": 1,
+        "x_m_stride": 2048,
+        "w_k_stride": 1000,
+        "w_n_stride": 1
+      }
+    },
+    {
+      "entry_func_name": "axiswise_bias",
+      "inputs": [
+        "v146"
+      ],
+      "outputs": [
+        "v155"
+      ],
+      "weights": [
+        "v161"
+      ],
+      "call_option": {
+        "n": 1000,
+        "axis_stride": 1,
+        "axis_size": 1000
+      }
+    }
+  ],
+  "weight_allocation": {
+    "total_size": 25530472,
+    "allocation": {
+      "v1": {
+        "name": "v1",
+        "offset": 0,
+        "size": 36864
+      },
+      "v7": {
+        "name": "v7",
+        "offset": 36864,
+        "size": 262144
+      },
+      "v8": {
+        "name": "v8",
+        "offset": 299008,
+        "size": 1048576
+      },
+      "v9": {
+        "name": "v9",
+        "offset": 1347584,
+        "size": 65536
+      },
+      "v10": {
+        "name": "v10",
+        "offset": 1413120,
+        "size": 256
+      },
+      "v14": {
+        "name": "v14",
+        "offset": 1413376,
+        "size": 128
+      },
+      "v18": {
+        "name": "v18",
+        "offset": 1413504,
+        "size": 589824
+      },
+      "v16": {
+        "name": "v16",
+        "offset": 2003328,
+        "size": 16384
+      },
+      "v19": {
+        "name": "v19",
+        "offset": 2019712,
+        "size": 64
+      },
+      "v21": {
+        "name": "v21",
+        "offset": 2019776,
+        "size": 147456
+      },
+      "v24": {
+        "name": "v24",
+        "offset": 2167232,
+        "size": 2097152
+      },
+      "v25": {
+        "name": "v25",
+        "offset": 4264384,
+        "size": 1024
+      },
+      "v32": {
+        "name": "v32",
+        "offset": 4265408,
+        "size": 512
+      },
+      "v33": {
+        "name": "v33",
+        "offset": 4265920,
+        "size": 262144
+      },
+      "v36": {
+        "name": "v36",
+        "offset": 4528064,
+        "size": 256
+      },
+      "v37": {
+        "name": "v37",
+        "offset": 4528320,
+        "size": 32768
+      },
+      "v38": {
+        "name": "v38",
+        "offset": 4561088,
+        "size": 65536
+      },
+      "v43": {
+        "name": "v43",
+        "offset": 4626624,
+        "size": 256
+      },
+      "v46": {
+        "name": "v46",
+        "offset": 4626880,
+        "size": 1048576
+      },
+      "v48": {
+        "name": "v48",
+        "offset": 5675456,
+        "size": 128
+      },
+      "v50": {
+        "name": "v50",
+        "offset": 5675584,
+        "size": 147456
+      },
+      "v51": {
+        "name": "v51",
+        "offset": 5823040,
+        "size": 128
+      },
+      "v57": {
+        "name": "v57",
+        "offset": 5823168,
+        "size": 262144
+      },
+      "v59": {
+        "name": "v59",
+        "offset": 6085312,
+        "size": 2359296
+      },
+      "v60": {
+        "name": "v60",
+        "offset": 8444608,
+        "size": 256
+      },
+      "v61": {
+        "name": "v61",
+        "offset": 8444864,
+        "size": 65536
+      },
+      "v67": {
+        "name": "v67",
+        "offset": 8510400,
+        "size": 128
+      },
+      "v66": {
+        "name": "v66",
+        "offset": 8510528,
+        "size": 65536
+      },
+      "v71": {
+        "name": "v71",
+        "offset": 8576064,
+        "size": 589824
+      },
+      "v70": {
+        "name": "v70",
+        "offset": 9165888,
+        "size": 128
+      },
+      "v73": {
+        "name": "v73",
+        "offset": 9166016,
+        "size": 147456
+      },
+      "v75": {
+        "name": "v75",
+        "offset": 9313472,
+        "size": 1048576
+      },
+      "v77": {
+        "name": "v77",
+        "offset": 10362048,
+        "size": 1024
+      },
+      "v78": {
+        "name": "v78",
+        "offset": 10363072,
+        "size": 256
+      },
+      "v81": {
+        "name": "v81",
+        "offset": 10363328,
+        "size": 512
+      },
+      "v84": {
+        "name": "v84",
+        "offset": 10363840,
+        "size": 131072
+      },
+      "v85": {
+        "name": "v85",
+        "offset": 10494912,
+        "size": 512
+      },
+      "v86": {
+        "name": "v86",
+        "offset": 10495424,
+        "size": 64
+      },
+      "v88": {
+        "name": "v88",
+        "offset": 10495488,
+        "size": 16384
+      },
+      "v89": {
+        "name": "v89",
+        "offset": 10511872,
+        "size": 65536
+      },
+      "v92": {
+        "name": "v92",
+        "offset": 10577408,
+        "size": 256
+      },
+      "v96": {
+        "name": "v96",
+        "offset": 10577664,
+        "size": 1048576
+      },
+      "v98": {
+        "name": "v98",
+        "offset": 11626240,
+        "size": 256
+      },
+      "v100": {
+        "name": "v100",
+        "offset": 11626496,
+        "size": 9408
+      },
+      "v103": {
+        "name": "v103",
+        "offset": 11635904,
+        "size": 512
+      },
+      "v105": {
+        "name": "v105",
+        "offset": 11636416,
+        "size": 65536
+      },
+      "v109": {
+        "name": "v109",
+        "offset": 11701952,
+        "size": 256
+      },
+      "v117": {
+        "name": "v117",
+        "offset": 11702208,
+        "size": 2359296
+      },
+      "v112": {
+        "name": "v112",
+        "offset": 14061504,
+        "size": 256
+      },
+      "v113": {
+        "name": "v113",
+        "offset": 14061760,
+        "size": 16384
+      },
+      "v119": {
+        "name": "v119",
+        "offset": 14078144,
+        "size": 256
+      },
+      "v121": {
+        "name": "v121",
+        "offset": 14078400,
+        "size": 147456
+      },
+      "v122": {
+        "name": "v122",
+        "offset": 14225856,
+        "size": 131072
+      },
+      "v123": {
+        "name": "v123",
+        "offset": 14356928,
+        "size": 128
+      },
+      "v127": {
+        "name": "v127",
+        "offset": 14357056,
+        "size": 36864
+      },
+      "v132": {
+        "name": "v132",
+        "offset": 14393920,
+        "size": 1048576
+      },
+      "v134": {
+        "name": "v134",
+        "offset": 15442496,
+        "size": 1024
+      },
+      "v135": {
+        "name": "v135",
+        "offset": 15443520,
+        "size": 64
+      },
+      "v136": {
+        "name": "v136",
+        "offset": 15443584,
+        "size": 589824
+      },
+      "v138": {
+        "name": "v138",
+        "offset": 16033408,
+        "size": 1024
+      },
+      "v141": {
+        "name": "v141",
+        "offset": 16034432,
+        "size": 64
+      },
+      "v143": {
+        "name": "v143",
+        "offset": 16034496,
+        "size": 262144
+      },
+      "v145": {
+        "name": "v145",
+        "offset": 16296640,
+        "size": 128
+      },
+      "v147": {
+        "name": "v147",
+        "offset": 16296768,
+        "size": 16384
+      },
+      "v151": {
+        "name": "v151",
+        "offset": 16313152,
+        "size": 256
+      },
+      "v153": {
+        "name": "v153",
+        "offset": 16313408,
+        "size": 262144
+      },
+      "v154": {
+        "name": "v154",
+        "offset": 16575552,
+        "size": 2048000
+      },
+      "v159": {
+        "name": "v159",
+        "offset": 18623552,
+        "size": 1024
+      },
+      "v160": {
+        "name": "v160",
+        "offset": 18624576,
+        "size": 524288
+      },
+      "v161": {
+        "name": "v161",
+        "offset": 19148864,
+        "size": 1000
+      },
+      "v162": {
+        "name": "v162",
+        "offset": 19149864,
+        "size": 512
+      },
+      "v165": {
+        "name": "v165",
+        "offset": 19150376,
+        "size": 65536
+      },
+      "v166": {
+        "name": "v166",
+        "offset": 19215912,
+        "size": 16384
+      },
+      "v174": {
+        "name": "v174",
+        "offset": 19232296,
+        "size": 256
+      },
+      "v168": {
+        "name": "v168",
+        "offset": 19232552,
+        "size": 2359296
+      },
+      "v173": {
+        "name": "v173",
+        "offset": 21591848,
+        "size": 256
+      },
+      "v178": {
+        "name": "v178",
+        "offset": 21592104,
+        "size": 128
+      },
+      "v180": {
+        "name": "v180",
+        "offset": 21592232,
+        "size": 2048
+      },
+      "v182": {
+        "name": "v182",
+        "offset": 21594280,
+        "size": 524288
+      },
+      "v183": {
+        "name": "v183",
+        "offset": 22118568,
+        "size": 1024
+      },
+      "v189": {
+        "name": "v189",
+        "offset": 22119592,
+        "size": 4096
+      },
+      "v188": {
+        "name": "v188",
+        "offset": 22123688,
+        "size": 512
+      },
+      "v191": {
+        "name": "v191",
+        "offset": 22124200,
+        "size": 64
+      },
+      "v195": {
+        "name": "v195",
+        "offset": 22124264,
+        "size": 64
+      },
+      "v198": {
+        "name": "v198",
+        "offset": 22124328,
+        "size": 256
+      },
+      "v203": {
+        "name": "v203",
+        "offset": 22124584,
+        "size": 512
+      },
+      "v204": {
+        "name": "v204",
+        "offset": 22125096,
+        "size": 36864
+      },
+      "v206": {
+        "name": "v206",
+        "offset": 22161960,
+        "size": 256
+      },
+      "v209": {
+        "name": "v209",
+        "offset": 22162216,
+        "size": 589824
+      },
+      "v211": {
+        "name": "v211",
+        "offset": 22752040,
+        "size": 2048
+      },
+      "v212": {
+        "name": "v212",
+        "offset": 22754088,
+        "size": 262144
+      },
+      "v213": {
+        "name": "v213",
+        "offset": 23016232,
+        "size": 262144
+      },
+      "v215": {
+        "name": "v215",
+        "offset": 23278376,
+        "size": 1024
+      },
+      "v219": {
+        "name": "v219",
+        "offset": 23279400,
+        "size": 16384
+      },
+      "v226": {
+        "name": "v226",
+        "offset": 23295784,
+        "size": 512
+      },
+      "v228": {
+        "name": "v228",
+        "offset": 23296296,
+        "size": 262144
+      },
+      "v239": {
+        "name": "v239",
+        "offset": 23558440,
+        "size": 512
+      },
+      "v240": {
+        "name": "v240",
+        "offset": 23558952,
+        "size": 589824
+      },
+      "v246": {
+        "name": "v246",
+        "offset": 24148776,
+        "size": 64
+      },
+      "v247": {
+        "name": "v247",
+        "offset": 24148840,
+        "size": 262144
+      },
+      "v250": {
+        "name": "v250",
+        "offset": 24410984,
+        "size": 2048
+      },
+      "v257": {
+        "name": "v257",
+        "offset": 24413032,
+        "size": 2048
+      },
+      "v258": {
+        "name": "v258",
+        "offset": 24415080,
+        "size": 262144
+      },
+      "v264": {
+        "name": "v264",
+        "offset": 24677224,
+        "size": 512
+      },
+      "v265": {
+        "name": "v265",
+        "offset": 24677736,
+        "size": 589824
+      },
+      "v271": {
+        "name": "v271",
+        "offset": 25267560,
+        "size": 256
+      },
+      "v277": {
+        "name": "v277",
+        "offset": 25267816,
+        "size": 512
+      },
+      "v279": {
+        "name": "v279",
+        "offset": 25268328,
+        "size": 262144
+      }
+    }
+  },
+  "weight_encoding": "eightbit",
+  "variable_allocation": {
+    "total_size": 36132816,
+    "allocation": {
+      "v0": {
+        "name": "v0",
+        "offset": 0,
+        "size": 200704
+      },
+      "v2": {
+        "name": "v2",
+        "offset": 200704,
+        "size": 100352
+      },
+      "v3": {
+        "name": "v3",
+        "offset": 301056,
+        "size": 50176
+      },
+      "v4": {
+        "name": "v4",
+        "offset": 351232,
+        "size": 50176
+      },
+      "v5": {
+        "name": "v5",
+        "offset": 401408,
+        "size": 50176
+      },
+      "v6": {
+        "name": "v6",
+        "offset": 451584,
+        "size": 25088
+      },
+      "v11": {
+        "name": "v11",
+        "offset": 476672,
+        "size": 200704
+      },
+      "v12": {
+        "name": "v12",
+        "offset": 677376,
+        "size": 50176
+      },
+      "v13": {
+        "name": "v13",
+        "offset": 727552,
+        "size": 802816
+      },
+      "v15": {
+        "name": "v15",
+        "offset": 1530368,
+        "size": 401408
+      },
+      "v20": {
+        "name": "v20",
+        "offset": 1931776,
+        "size": 25088
+      },
+      "v17": {
+        "name": "v17",
+        "offset": 1956864,
+        "size": 50176
+      },
+      "v22": {
+        "name": "v22",
+        "offset": 2007040,
+        "size": 802816
+      },
+      "v23": {
+        "name": "v23",
+        "offset": 2809856,
+        "size": 50176
+      },
+      "v26": {
+        "name": "v26",
+        "offset": 2860032,
+        "size": 401408
+      },
+      "v27": {
+        "name": "v27",
+        "offset": 3261440,
+        "size": 50176
+      },
+      "v31": {
+        "name": "v31",
+        "offset": 3311616,
+        "size": 100352
+      },
+      "v28": {
+        "name": "v28",
+        "offset": 3411968,
+        "size": 50176
+      },
+      "v29": {
+        "name": "v29",
+        "offset": 3462144,
+        "size": 200704
+      },
+      "v30": {
+        "name": "v30",
+        "offset": 3662848,
+        "size": 100352
+      },
+      "v34": {
+        "name": "v34",
+        "offset": 3763200,
+        "size": 200704
+      },
+      "v35": {
+        "name": "v35",
+        "offset": 3963904,
+        "size": 25088
+      },
+      "v39": {
+        "name": "v39",
+        "offset": 3988992,
+        "size": 50176
+      },
+      "v40": {
+        "name": "v40",
+        "offset": 4039168,
+        "size": 200704
+      },
+      "v41": {
+        "name": "v41",
+        "offset": 4239872,
+        "size": 100352
+      },
+      "v42": {
+        "name": "v42",
+        "offset": 4340224,
+        "size": 50176
+      },
+      "v44": {
+        "name": "v44",
+        "offset": 4390400,
+        "size": 50176
+      },
+      "v45": {
+        "name": "v45",
+        "offset": 4440576,
+        "size": 100352
+      },
+      "v47": {
+        "name": "v47",
+        "offset": 4540928,
+        "size": 401408
+      },
+      "v49": {
+        "name": "v49",
+        "offset": 4942336,
+        "size": 25088
+      },
+      "v52": {
+        "name": "v52",
+        "offset": 4967424,
+        "size": 200704
+      },
+      "v53": {
+        "name": "v53",
+        "offset": 5168128,
+        "size": 200704
+      },
+      "v54": {
+        "name": "v54",
+        "offset": 5368832,
+        "size": 100352
+      },
+      "v55": {
+        "name": "v55",
+        "offset": 5469184,
+        "size": 50176
+      },
+      "v56": {
+        "name": "v56",
+        "offset": 5519360,
+        "size": 50176
+      },
+      "v58": {
+        "name": "v58",
+        "offset": 5569536,
+        "size": 25088
+      },
+      "v62": {
+        "name": "v62",
+        "offset": 5594624,
+        "size": 100352
+      },
+      "v63": {
+        "name": "v63",
+        "offset": 5694976,
+        "size": 802816
+      },
+      "v64": {
+        "name": "v64",
+        "offset": 6497792,
+        "size": 802816
+      },
+      "v65": {
+        "name": "v65",
+        "offset": 7300608,
+        "size": 401408
+      },
+      "v68": {
+        "name": "v68",
+        "offset": 7702016,
+        "size": 50176
+      },
+      "v69": {
+        "name": "v69",
+        "offset": 7752192,
+        "size": 50176
+      },
+      "v74": {
+        "name": "v74",
+        "offset": 7802368,
+        "size": 100352
+      },
+      "v72": {
+        "name": "v72",
+        "offset": 7902720,
+        "size": 25088
+      },
+      "v76": {
+        "name": "v76",
+        "offset": 7927808,
+        "size": 200704
+      },
+      "v80": {
+        "name": "v80",
+        "offset": 8128512,
+        "size": 50176
+      },
+      "v83": {
+        "name": "v83",
+        "offset": 8178688,
+        "size": 100352
+      },
+      "v79": {
+        "name": "v79",
+        "offset": 8279040,
+        "size": 802816
+      },
+      "v82": {
+        "name": "v82",
+        "offset": 9081856,
+        "size": 50176
+      },
+      "v87": {
+        "name": "v87",
+        "offset": 9132032,
+        "size": 200704
+      },
+      "v90": {
+        "name": "v90",
+        "offset": 9332736,
+        "size": 50176
+      },
+      "v91": {
+        "name": "v91",
+        "offset": 9382912,
+        "size": 200704
+      },
+      "v93": {
+        "name": "v93",
+        "offset": 9583616,
+        "size": 200704
+      },
+      "v94": {
+        "name": "v94",
+        "offset": 9784320,
+        "size": 50176
+      },
+      "v95": {
+        "name": "v95",
+        "offset": 9834496,
+        "size": 50176
+      },
+      "v97": {
+        "name": "v97",
+        "offset": 9884672,
+        "size": 802816
+      },
+      "v99": {
+        "name": "v99",
+        "offset": 10687488,
+        "size": 50176
+      },
+      "v101": {
+        "name": "v101",
+        "offset": 10737664,
+        "size": 25088
+      },
+      "v102": {
+        "name": "v102",
+        "offset": 10762752,
+        "size": 100352
+      },
+      "v104": {
+        "name": "v104",
+        "offset": 10863104,
+        "size": 50176
+      },
+      "v106": {
+        "name": "v106",
+        "offset": 10913280,
+        "size": 802816
+      },
+      "v107": {
+        "name": "v107",
+        "offset": 11716096,
+        "size": 401408
+      },
+      "v108": {
+        "name": "v108",
+        "offset": 12117504,
+        "size": 200704
+      },
+      "v111": {
+        "name": "v111",
+        "offset": 12318208,
+        "size": 50176
+      },
+      "v110": {
+        "name": "v110",
+        "offset": 12368384,
+        "size": 200704
+      },
+      "v252": {
+        "name": "v252",
+        "offset": 12569088,
+        "size": 200704
+      },
+      "v114": {
+        "name": "v114",
+        "offset": 12769792,
+        "size": 50176
+      },
+      "v115": {
+        "name": "v115",
+        "offset": 12819968,
+        "size": 25088
+      },
+      "v118": {
+        "name": "v118",
+        "offset": 12845056,
+        "size": 2048
+      },
+      "v116": {
+        "name": "v116",
+        "offset": 12847104,
+        "size": 25088
+      },
+      "v120": {
+        "name": "v120",
+        "offset": 12872192,
+        "size": 100352
+      },
+      "v124": {
+        "name": "v124",
+        "offset": 12972544,
+        "size": 802816
+      },
+      "v125": {
+        "name": "v125",
+        "offset": 13775360,
+        "size": 401408
+      },
+      "v126": {
+        "name": "v126",
+        "offset": 14176768,
+        "size": 50176
+      },
+      "v128": {
+        "name": "v128",
+        "offset": 14226944,
+        "size": 50176
+      },
+      "v129": {
+        "name": "v129",
+        "offset": 14277120,
+        "size": 100352
+      },
+      "v133": {
+        "name": "v133",
+        "offset": 14377472,
+        "size": 2048
+      },
+      "v130": {
+        "name": "v130",
+        "offset": 14379520,
+        "size": 200704
+      },
+      "v131": {
+        "name": "v131",
+        "offset": 14580224,
+        "size": 25088
+      },
+      "v137": {
+        "name": "v137",
+        "offset": 14605312,
+        "size": 200704
+      },
+      "v139": {
+        "name": "v139",
+        "offset": 14806016,
+        "size": 50176
+      },
+      "v140": {
+        "name": "v140",
+        "offset": 14856192,
+        "size": 200704
+      },
+      "v146": {
+        "name": "v146",
+        "offset": 15056896,
+        "size": 1000
+      },
+      "v142": {
+        "name": "v142",
+        "offset": 15057896,
+        "size": 50176
+      },
+      "v144": {
+        "name": "v144",
+        "offset": 15108072,
+        "size": 25088
+      },
+      "v148": {
+        "name": "v148",
+        "offset": 15133160,
+        "size": 802816
+      },
+      "v149": {
+        "name": "v149",
+        "offset": 15935976,
+        "size": 401408
+      },
+      "v150": {
+        "name": "v150",
+        "offset": 16337384,
+        "size": 200704
+      },
+      "v152": {
+        "name": "v152",
+        "offset": 16538088,
+        "size": 50176
+      },
+      "v155": {
+        "name": "v155",
+        "offset": 16588264,
+        "size": 1000
+      },
+      "v156": {
+        "name": "v156",
+        "offset": 16589264,
+        "size": 200704
+      },
+      "v157": {
+        "name": "v157",
+        "offset": 16789968,
+        "size": 200704
+      },
+      "v158": {
+        "name": "v158",
+        "offset": 16990672,
+        "size": 100352
+      },
+      "v163": {
+        "name": "v163",
+        "offset": 17091024,
+        "size": 100352
+      },
+      "v164": {
+        "name": "v164",
+        "offset": 17191376,
+        "size": 50176
+      },
+      "v167": {
+        "name": "v167",
+        "offset": 17241552,
+        "size": 50176
+      },
+      "v169": {
+        "name": "v169",
+        "offset": 17291728,
+        "size": 200704
+      },
+      "v170": {
+        "name": "v170",
+        "offset": 17492432,
+        "size": 200704
+      },
+      "v171": {
+        "name": "v171",
+        "offset": 17693136,
+        "size": 200704
+      },
+      "v177": {
+        "name": "v177",
+        "offset": 17893840,
+        "size": 100352
+      },
+      "v172": {
+        "name": "v172",
+        "offset": 17994192,
+        "size": 200704
+      },
+      "v176": {
+        "name": "v176",
+        "offset": 18194896,
+        "size": 25088
+      },
+      "v175": {
+        "name": "v175",
+        "offset": 18219984,
+        "size": 200704
+      },
+      "v179": {
+        "name": "v179",
+        "offset": 18420688,
+        "size": 200704
+      },
+      "v181": {
+        "name": "v181",
+        "offset": 18621392,
+        "size": 100352
+      },
+      "v184": {
+        "name": "v184",
+        "offset": 18721744,
+        "size": 802816
+      },
+      "v185": {
+        "name": "v185",
+        "offset": 19524560,
+        "size": 401408
+      },
+      "v186": {
+        "name": "v186",
+        "offset": 19925968,
+        "size": 200704
+      },
+      "v187": {
+        "name": "v187",
+        "offset": 20126672,
+        "size": 200704
+      },
+      "v190": {
+        "name": "v190",
+        "offset": 20327376,
+        "size": 200704
+      },
+      "v192": {
+        "name": "v192",
+        "offset": 20528080,
+        "size": 200704
+      },
+      "v193": {
+        "name": "v193",
+        "offset": 20728784,
+        "size": 100352
+      },
+      "v194": {
+        "name": "v194",
+        "offset": 20829136,
+        "size": 100352
+      },
+      "v197": {
+        "name": "v197",
+        "offset": 20929488,
+        "size": 100352
+      },
+      "v196": {
+        "name": "v196",
+        "offset": 21029840,
+        "size": 401408
+      },
+      "v199": {
+        "name": "v199",
+        "offset": 21431248,
+        "size": 100352
+      },
+      "v200": {
+        "name": "v200",
+        "offset": 21531600,
+        "size": 200704
+      },
+      "v201": {
+        "name": "v201",
+        "offset": 21732304,
+        "size": 100352
+      },
+      "v202": {
+        "name": "v202",
+        "offset": 21832656,
+        "size": 25088
+      },
+      "v205": {
+        "name": "v205",
+        "offset": 21857744,
+        "size": 200704
+      },
+      "v207": {
+        "name": "v207",
+        "offset": 22058448,
+        "size": 200704
+      },
+      "v208": {
+        "name": "v208",
+        "offset": 22259152,
+        "size": 100352
+      },
+      "v210": {
+        "name": "v210",
+        "offset": 22359504,
+        "size": 200704
+      },
+      "v214": {
+        "name": "v214",
+        "offset": 22560208,
+        "size": 200704
+      },
+      "v216": {
+        "name": "v216",
+        "offset": 22760912,
+        "size": 200704
+      },
+      "v217": {
+        "name": "v217",
+        "offset": 22961616,
+        "size": 100352
+      },
+      "v218": {
+        "name": "v218",
+        "offset": 23061968,
+        "size": 100352
+      },
+      "v220": {
+        "name": "v220",
+        "offset": 23162320,
+        "size": 401408
+      },
+      "v221": {
+        "name": "v221",
+        "offset": 23563728,
+        "size": 200704
+      },
+      "v222": {
+        "name": "v222",
+        "offset": 23764432,
+        "size": 200704
+      },
+      "v223": {
+        "name": "v223",
+        "offset": 23965136,
+        "size": 200704
+      },
+      "v224": {
+        "name": "v224",
+        "offset": 24165840,
+        "size": 100352
+      },
+      "v225": {
+        "name": "v225",
+        "offset": 24266192,
+        "size": 100352
+      },
+      "v227": {
+        "name": "v227",
+        "offset": 24366544,
+        "size": 25088
+      },
+      "v229": {
+        "name": "v229",
+        "offset": 24391632,
+        "size": 50176
+      },
+      "v230": {
+        "name": "v230",
+        "offset": 24441808,
+        "size": 401408
+      },
+      "v231": {
+        "name": "v231",
+        "offset": 24843216,
+        "size": 200704
+      },
+      "v232": {
+        "name": "v232",
+        "offset": 25043920,
+        "size": 200704
+      },
+      "v233": {
+        "name": "v233",
+        "offset": 25244624,
+        "size": 100352
+      },
+      "v234": {
+        "name": "v234",
+        "offset": 25344976,
+        "size": 100352
+      },
+      "v235": {
+        "name": "v235",
+        "offset": 25445328,
+        "size": 150528
+      },
+      "v236": {
+        "name": "v236",
+        "offset": 25595856,
+        "size": 100352
+      },
+      "v237": {
+        "name": "v237",
+        "offset": 25696208,
+        "size": 50176
+      },
+      "v238": {
+        "name": "v238",
+        "offset": 25746384,
+        "size": 25088
+      },
+      "v241": {
+        "name": "v241",
+        "offset": 25771472,
+        "size": 200704
+      },
+      "v242": {
+        "name": "v242",
+        "offset": 25972176,
+        "size": 100352
+      },
+      "v243": {
+        "name": "v243",
+        "offset": 26072528,
+        "size": 25088
+      },
+      "v244": {
+        "name": "v244",
+        "offset": 26097616,
+        "size": 802816
+      },
+      "v245": {
+        "name": "v245",
+        "offset": 26900432,
+        "size": 401408
+      },
+      "v248": {
+        "name": "v248",
+        "offset": 27301840,
+        "size": 802816
+      },
+      "v249": {
+        "name": "v249",
+        "offset": 28104656,
+        "size": 401408
+      },
+      "v251": {
+        "name": "v251",
+        "offset": 28506064,
+        "size": 100352
+      },
+      "v253": {
+        "name": "v253",
+        "offset": 28606416,
+        "size": 50176
+      },
+      "v254": {
+        "name": "v254",
+        "offset": 28656592,
+        "size": 200704
+      },
+      "v255": {
+        "name": "v255",
+        "offset": 28857296,
+        "size": 100352
+      },
+      "v256": {
+        "name": "v256",
+        "offset": 28957648,
+        "size": 100352
+      },
+      "v259": {
+        "name": "v259",
+        "offset": 29058000,
+        "size": 200704
+      },
+      "v260": {
+        "name": "v260",
+        "offset": 29258704,
+        "size": 50176
+      },
+      "v261": {
+        "name": "v261",
+        "offset": 29308880,
+        "size": 200704
+      },
+      "v262": {
+        "name": "v262",
+        "offset": 29509584,
+        "size": 100352
+      },
+      "v263": {
+        "name": "v263",
+        "offset": 29609936,
+        "size": 100352
+      },
+      "v266": {
+        "name": "v266",
+        "offset": 29710288,
+        "size": 25088
+      },
+      "v267": {
+        "name": "v267",
+        "offset": 29735376,
+        "size": 50176
+      },
+      "v268": {
+        "name": "v268",
+        "offset": 29785552,
+        "size": 802816
+      },
+      "v269": {
+        "name": "v269",
+        "offset": 30588368,
+        "size": 802816
+      },
+      "v270": {
+        "name": "v270",
+        "offset": 31391184,
+        "size": 401408
+      },
+      "v272": {
+        "name": "v272",
+        "offset": 31792592,
+        "size": 100352
+      },
+      "v273": {
+        "name": "v273",
+        "offset": 31892944,
+        "size": 401408
+      },
+      "v274": {
+        "name": "v274",
+        "offset": 32294352,
+        "size": 401408
+      },
+      "v275": {
+        "name": "v275",
+        "offset": 32695760,
+        "size": 25088
+      },
+      "v276": {
+        "name": "v276",
+        "offset": 32720848,
+        "size": 401408
+      },
+      "v278": {
+        "name": "v278",
+        "offset": 33122256,
+        "size": 802816
+      },
+      "v280": {
+        "name": "v280",
+        "offset": 33925072,
+        "size": 802816
+      },
+      "v281": {
+        "name": "v281",
+        "offset": 34727888,
+        "size": 401408
+      },
+      "v282": {
+        "name": "v282",
+        "offset": 35129296,
+        "size": 100352
+      },
+      "v283": {
+        "name": "v283",
+        "offset": 35229648,
+        "size": 100352
+      },
+      "v284": {
+        "name": "v284",
+        "offset": 35330000,
+        "size": 802816
+      }
+    }
+  },
+  "inputs": [
+    "v235"
+  ],
+  "outputs": [
+    "v155"
+  ]
+}

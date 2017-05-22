@@ -1,0 +1,61 @@
+$c-example-body-background: #000;
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  overflow: hidden;
+  background: $c-example-body-background;
+  color: #fff;
+  box-sizing: border-box;
+  font-family: sans-serif;
+  font-weight: 300;
+
+  main {
+    flex: 1 1;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+
+    .Top {
+      flex: 0 auto;
+      overflow: auto;
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+
+      .Left {
+        padding: 32px 32px 32px 32px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+
+        .Spacer {
+          flex: 1;
+        }
+      }
+
+      .Right {
+        flex: 1;
+        padding: 32px 32px 32px 0px;
+      }
+    }
+
+    .Bottom {
+      flex: 1 1;
+      overflow: auto;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px 0 32px;
+      background: rgb(28, 29, 35);
+    }
+  }
+}
+
+#OutputCanvasContainer {
+  border: 1px solid #444;
+}

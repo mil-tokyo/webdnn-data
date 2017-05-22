@@ -1,0 +1,17 @@
+{
+	"compilerOptions": {
+		"baseUrl": ".",
+		"target": "ES2016",
+		"strictNullChecks": true,
+		"outDir": "tmp",
+		"lib": [
+			"ES2017",
+			"ES2016",
+			"ES2015",
+			"DOM"
+		]
+	},
+	"include": [
+		"./src/scripts/script.ts"
+	]
+}

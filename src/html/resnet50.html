@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>mil-web-dnn</title>
+    <script src="./inflate.min.js"></script>
+    <script src="./webdnn.js"></script>
+</head>
+<body>
+
+<input type="file" id="imageInput" style="position: absolute; top: -999px;">
+
+<div class="LaunchView" id="launchView">
+    <button id="runAppButton" class="Primary">
+        <svg height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 5v14l11-7z"/>
+        </svg>
+        <span>Run</span>
+    </button>
+</div>
+
+<div class="InitializingView" id="initializingView">
+    <span class="InitializingView-Message">Initializing...</span>
+    <div class="InitializingView-ProgressBar ProgressBar">
+        <div class="ProgressBar-Inner"></div>
+    </div>
+</div>
+
+<main>
+    <div class="Left">
+        <div class="Tip">Input</div>
+
+        <div class="CanvasContainer">
+            <div class="CanvasContainer-message">
+                <span class="CanvasContainer-message-large">NO IMAGE LOADED</span>
+            </div>
+            <canvas id="canvas" width="224" height="224"></canvas>
+        </div>
+        <label class="Button" for="imageInput">Open local image</label>
+        <button id="loadRandomButton">Load random image</button>
+        <span class="Spacer"></span>
+        <button class="Primary" id="runButton" disabled>Run</button>
+    </div>
+
+    <div class="Right">
+        <div class="Tip">Result</div>
+
+        <p id="firstMessage">Select an image, and click "Run" button.</p>
+
+        <div class="Result" id="result" style="display: none;">
+            <div class="Result-Probability">
+                <div class="ResultItem">
+                    <div class="ResultItem-Label">
+                        <span id="predictedLabel0"></span>
+                    </div>
+                    <div class="ResultItem-Value">
+                        <div class="ResultItem-Bar" style="width: 42%;"></div>
+                        <span><strong>42</strong>%</span>
+                    </div>
+                </div>
+                <div class="ResultItem">
+                    <div class="ResultItem-Label">
+                        <span id="predictedLabel1"></span>
+                    </div>
+                    <div class="ResultItem-Value">
+                        <div class="ResultItem-Bar" style="width: 29%;"></div>
+                        <span><strong>29</strong>%</span>
+                    </div>
+                </div>
+                <div class="ResultItem">
+                    <div class="ResultItem-Label">
+                        <span id="predictedLabel2"></span>
+                    </div>
+                    <div class="ResultItem-Value">
+                        <div class="ResultItem-Bar" style="width: 24%;"></div>
+                        <span><strong>24</strong>%</span>
+                    </div>
+                </div>
+                <div class="ResultItem">
+                    <div class="ResultItem-Label">
+                        <span id="predictedLabel3"></span>
+                    </div>
+                    <div class="ResultItem-Value">
+                        <div class="ResultItem-Bar" style="width: 1%;"></div>
+                        <span><strong>1</strong>%</span>
+                    </div>
+                </div>
+                <div class="ResultItem">
+                    <div class="ResultItem-Label">
+                        <span id="predictedLabel4"></span>
+                    </div>
+                    <div class="ResultItem-Value">
+                        <div class="ResultItem-Bar" style="width: 1%;"></div>
+                        <span><strong>1</strong>%</span>
+                    </div>
+                </div>
+            </div>
+            <p class="Result-ComputationTime">
+                <span>Computation Time:<strong id="computationTime"></strong>ms</span>
+            </p>
+        </div>
+
+    </div>
+</main>
+
+
+</body>
+</html>

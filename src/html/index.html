@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1">
+    <meta name="theme-color" content="#FF6B00">
+    <title>MIL WebDNN</title>
+    <script src="./inflate.min.js"></script>
+</head>
+<body>
+
+<header class="PageHeader">
+    <h1><span class="MIL_LOGO">MIL</span> WebDNN</h1>
+    <p class="PageHeader-Menu">
+        <a href="https://github.com/mil-tokyo/mil-web-dnn">GitHub</a>
+    </p>
+</header>
+
+<main>
+    <section class="SplashPage">
+        <div id="splash" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+        <h1>Fastest DNN Execution Framework on Web Browser</h1>
+    </section>
+
+    <section class="Section">
+        <div class="Row">
+            <div class="Cell">
+                <h2 class="Section-Title">About MIL WebDNN</h2>
+            </div>
+        </div>
+        <div class="Row">
+            <div class="Cell-4">
+                <h3 class="Cell-Title">Run Trained DNN Model on Web Browser</h3>
+                <p>
+                    Deep neural network (DNN) is getting much attention to use in many applications. However, it
+                    requires a lot of computational resources, and there are many tremendous processes to setup
+                    execution environment based hardware acceleration such as GPGPU. Therefore providing DNN
+                    applications to end-users is very hard. WebDNN solves this problem by using web browser as
+                    install-free DNN execution framework. This framework optimizes trained DNN model to compress the
+                    model data and accelerate the execution, and executes it with novel JavaScript API such as
+                    WebAssembly and WebGPU to achieve zero-overhead execution. Empirical evaluations showed that it
+                    achieved more than 200x acceleration.
+                </p>
+            </div>
+            <div class="Cell-4">
+                <h3 class="Cell-Title">Next Generation JavaScript API</h3>
+                <p>
+                    JavaScript has a large overhead for execution than native implementation. We use WebAssembly to
+                    remove this overhead. Also GPU hardware acceleration is very important to execute DNN, but WebGL
+                    doesn't support computing shader. We use next generation JavaScript GPU API, WebGPU. WebGPU supports
+                    computing shader and the overhead of computation by WebGPU is much smaller than WebGL.
+                </p>
+            </div>
+            <div class="Cell-4">
+                <h3 class="Cell-Title">Inference-phase Specialized Optimization</h3>
+                <p>
+                    あとで書く
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="Section Section-Grey">
+        <div class="Row">
+            <div class="Cell-flex">
+                <h2 class="Section-Title">Neural Style Transfer</h2>
+                <p>
+                    This example run Neural Style Transfer model<a class="ref" href="#ref1">[1]</a>. Neural Style
+                    Transfer model are given 2 input images, one is contents image and another is style image. Then this
+                    model generate an image based on the style of the style image and the content in the content image.
+                </p>
+                <p>
+                    We use chainer<a class="ref" href="#ref2">[2]</a> implementation provided in
+                    <a class="ref" href="#ref3">[3]</a> and pre-trained model provided in <a class="ref" href="#ref4">[4]</a>.
+                    The pre-trained model are transpiled by <b>GraphTranspiler</b> into graph descriptor, and then
+                    executed by <b>DescriptorRunner</b>. <b>All computation are done by web browser, not by server.</b>
+                </p>
+                <p>
+                    This example requires to access the web camera to capture content images.
+                    Safari blocked to access web camera as default additional configuration are needed.
+                </p>
+                <ol class="Article-References">
+                    <li id="ref1">
+                        L. Gatys, A. Ecker, M. Bethge, <i>"Image Style Transfer Using Convolutional Neural Networks"</i>,
+                        IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2016.
+                    </li>
+                    <li id="ref2">
+                        <a href="https://github.com/pfnet/chainer"
+                           rel="noopener">https://github.com/pfnet/chainer</a>
+                    </li>
+                    <li id="ref3">
+                        <a href="https://github.com/yusuketomoto/chainer-fast-neuralstyle"
+                           rel="noopener">
+                            https://github.com/yusuketomoto/chainer-fast-neuralstyle
+                        </a>
+                    </li>
+                    <li id="ref4">
+                        <a href="https://github.com/gafr/chainer-fast-neuralstyle-models"
+                           rel="noopener">
+                            https://github.com/gafr/chainer-fast-neuralstyle-models
+                        </a>
+                    </li>
+                </ol>
+            </div>
+            <div class="Cell-flex">
+                <iframe class="PlayGround" width="756" height="560" src="neural_style_transfer.html"
+                        frameborder="0" title="Sample: Neural Style Transfer"></iframe>
+            </div>
+        </div>
+    </section>
+
+    <section class="Section">
+        <div class="Row">
+            <div class="Cell-flex">
+                <h2 class="Section-Title">ResNet50 Image Classification</h2>
+                <p>
+                    In this example you can run ResNet50<a class="ref" href="#ref5">[5]</a> classification model trained
+                    by ImageNet<a class="ref" href="#ref6">[6]</a>. Original pre-trained model is provided in
+                    <a class="ref" href="#ref7">[7]</a>. <b>All computation are done by web browser, not by server.</b>
+                </p>
+                <ol class="Article-References">
+                    <li id="ref5">
+                        K. He, X. Zhang, S. Ren, and J. Sun, <i>"Deep Residual Learning for Image Recognition"</i>,
+                        IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2016.
+                    </li>
+                    <li id="ref6">
+                        J. Deng, W. Dong, R. Socher, L. Li, K. Li and L. Fei-Fei, <i>"ImageNet: A Large-Scale
+                        Hierarchical Image Database"</i>,
+                        IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2009.
+                    </li>
+                    <li id="ref7">
+                        <a href="https://github.com/KaimingHe/deep-residual-networks"
+                           rel="noopener">https://github.com/KaimingHe/deep-residual-networks</a>
+                    </li>
+                </ol>
+            </div>
+            <div class="Cell-flex">
+                <iframe class="PlayGround"
+                        width="756"
+                        height="480"
+                        src="resnet50.html"
+                        frameborder="0"
+                        title="Sample: ResNet50 Image Classification"></iframe>
+            </div>
+        </div>
+    </section>
+
+    <footer class="PageFooter">
+        <p>
+            &copy;&nbsp;<a href="http://www.mi.t.u-tokyo.ac.jp/en" target="_blank" rel="noopener">Harada Ushiku
+            Laboratory (Machine Intelligence Laboratory, MIL), Department of Mechano Informatics, The University of
+            Tokyo</a>&nbsp;All Rights Reserved.
+        </p>
+    </footer>
+
+    <script>
+        /*!
+         * Particleground
+         *
+         * @author Jonathan Nicol - @mrjnicol
+         * @version 1.1.0
+         * @description Creates a canvas based particle system background
+         *
+         * Inspired by http://requestlab.fr/ and http://disruptivebydesign.com/
+         */
+		!function (a, b) {
+			"use strict";
+			function c(a) {
+				a = a || {};
+				for (var b = 1; b < arguments.length; b++) {
+					var c = arguments[b];
+					if (c)for (var d in c)c.hasOwnProperty(d) && ("object" == typeof c[d] ? deepExtend(a[d], c[d]) : a[d] = c[d])
+				}
+				return a
+			}
+
+			function d(d, g) {
+				function h() {
+					if (y) {
+						r = b.createElement("canvas"), r.className = "pg-canvas", r.style.display = "block", d.insertBefore(r, d.firstChild), s = r.getContext("2d"), i();
+						for (var c = Math.round(r.width * r.height / g.density), e = 0; c > e; e++) {
+							var f = new n;
+							f.setStackPos(e), z.push(f)
+						}
+						a.addEventListener("resize", function () {
+							k()
+						}, !1), b.addEventListener("mousemove", function (a) {
+							A = a.pageX, B = a.pageY
+						}, !1), D && !C && a.addEventListener("deviceorientation", function () {
+							F = Math.min(Math.max(-event.beta, -30), 30), E = Math.min(Math.max(-event.gamma, -30), 30)
+						}, !0), j(), q("onInit")
+					}
+				}
+
+				function i() {
+					r.width = d.offsetWidth, r.height = d.offsetHeight, s.fillStyle = g.dotColor, s.strokeStyle = g.lineColor, s.lineWidth = g.lineWidth
+				}
+
+				function j() {
+					if (y) {
+						u = a.innerWidth, v = a.innerHeight, s.clearRect(0, 0, r.width, r.height);
+						for (var b = 0; b < z.length; b++)z[b].updatePosition();
+						for (var b = 0; b < z.length; b++)z[b].draw();
+						G || (t = requestAnimationFrame(j))
+					}
+				}
+
+				function k() {
+					i();
+					for (var a = d.offsetWidth, b = d.offsetHeight, c = z.length - 1; c >= 0; c--)(z[c].position.x > a || z[c].position.y > b) && z.splice(c, 1);
+					var e = Math.round(r.width * r.height / g.density);
+					if (e > z.length)for (; e > z.length;) {
+						var f = new n;
+						z.push(f)
+					} else e < z.length && z.splice(e);
+					for (c = z.length - 1; c >= 0; c--)z[c].setStackPos(c)
+				}
+
+				function l() {
+					G = !0
+				}
+
+				function m() {
+					G = !1, j()
+				}
+
+				function n() {
+					switch (this.stackPos, this.active = !0, this.layer = Math.ceil(3 * Math.random()), this.parallaxOffsetX = 0, this.parallaxOffsetY = 0, this.position = {
+						x: Math.ceil(Math.random() * r.width),
+						y: Math.ceil(Math.random() * r.height)
+					}, this.speed = {}, g.directionX) {
+						case"left":
+							this.speed.x = +(-g.maxSpeedX + Math.random() * g.maxSpeedX - g.minSpeedX).toFixed(2);
+							break;
+						case"right":
+							this.speed.x = +(Math.random() * g.maxSpeedX + g.minSpeedX).toFixed(2);
+							break;
+						default:
+							this.speed.x = +(-g.maxSpeedX / 2 + Math.random() * g.maxSpeedX).toFixed(2), this.speed.x += this.speed.x > 0 ? g.minSpeedX : -g.minSpeedX
+					}
+					switch (g.directionY) {
+						case"up":
+							this.speed.y = +(-g.maxSpeedY + Math.random() * g.maxSpeedY - g.minSpeedY).toFixed(2);
+							break;
+						case"down":
+							this.speed.y = +(Math.random() * g.maxSpeedY + g.minSpeedY).toFixed(2);
+							break;
+						default:
+							this.speed.y = +(-g.maxSpeedY / 2 + Math.random() * g.maxSpeedY).toFixed(2), this.speed.x += this.speed.y > 0 ? g.minSpeedY : -g.minSpeedY
+					}
+				}
+
+				function o(a, b) {
+					return b ? void(g[a] = b) : g[a]
+				}
+
+				function p() {
+					console.log("destroy"), r.parentNode.removeChild(r), q("onDestroy"), f && f(d).removeData("plugin_" + e)
+				}
+
+				function q(a) {
+					void 0 !== g[a] && g[a].call(d)
+				}
+
+				var r, s, t, u, v, w, x, y = !!b.createElement("canvas").getContext, z = [], A = 0, B = 0,
+					C = !navigator.userAgent.match(/(iPhone|iPod|iPad|Android|BlackBerry|BB10|mobi|tablet|opera mini|nexus 7)/i),
+					D = !!a.DeviceOrientationEvent, E = 0, F = 0, G = !1;
+				return g = c({}, a[e].defaults, g), n.prototype.draw = function () {
+					s.beginPath(), s.arc(this.position.x + this.parallaxOffsetX, this.position.y + this.parallaxOffsetY, g.particleRadius / 2, 0, 2 * Math.PI, !0), s.closePath(), s.fill(), s.beginPath();
+					for (var a = z.length - 1; a > this.stackPos; a--) {
+						var b = z[a], c = this.position.x - b.position.x, d = this.position.y - b.position.y,
+							e = Math.sqrt(c * c + d * d).toFixed(2);
+						e < g.proximity && (s.moveTo(this.position.x + this.parallaxOffsetX, this.position.y + this.parallaxOffsetY), g.curvedLines ? s.quadraticCurveTo(Math.max(b.position.x, b.position.x), Math.min(b.position.y, b.position.y), b.position.x + b.parallaxOffsetX, b.position.y + b.parallaxOffsetY) : s.lineTo(b.position.x + b.parallaxOffsetX, b.position.y + b.parallaxOffsetY))
+					}
+					s.stroke(), s.closePath()
+				}, n.prototype.updatePosition = function () {
+					if (g.parallax) {
+						if (D && !C) {
+							var a = (u - 0) / 60;
+							w = (E - -30) * a + 0;
+							var b = (v - 0) / 60;
+							x = (F - -30) * b + 0
+						} else w = A, x = B;
+						this.parallaxTargX = (w - u / 2) / (g.parallaxMultiplier * this.layer), this.parallaxOffsetX += (this.parallaxTargX - this.parallaxOffsetX) / 10, this.parallaxTargY = (x - v / 2) / (g.parallaxMultiplier * this.layer), this.parallaxOffsetY += (this.parallaxTargY - this.parallaxOffsetY) / 10
+					}
+					var c = d.offsetWidth, e = d.offsetHeight;
+					switch (g.directionX) {
+						case"left":
+							this.position.x + this.speed.x + this.parallaxOffsetX < 0 && (this.position.x = c - this.parallaxOffsetX);
+							break;
+						case"right":
+							this.position.x + this.speed.x + this.parallaxOffsetX > c && (this.position.x = 0 - this.parallaxOffsetX);
+							break;
+						default:
+							(this.position.x + this.speed.x + this.parallaxOffsetX > c || this.position.x + this.speed.x + this.parallaxOffsetX < 0) && (this.speed.x = -this.speed.x)
+					}
+					switch (g.directionY) {
+						case"up":
+							this.position.y + this.speed.y + this.parallaxOffsetY < 0 && (this.position.y = e - this.parallaxOffsetY);
+							break;
+						case"down":
+							this.position.y + this.speed.y + this.parallaxOffsetY > e && (this.position.y = 0 - this.parallaxOffsetY);
+							break;
+						default:
+							(this.position.y + this.speed.y + this.parallaxOffsetY > e || this.position.y + this.speed.y + this.parallaxOffsetY < 0) && (this.speed.y = -this.speed.y)
+					}
+					this.position.x += this.speed.x, this.position.y += this.speed.y
+				}, n.prototype.setStackPos = function (a) {
+					this.stackPos = a
+				}, h(), {
+					option: o,
+					destroy: p,
+					start: m,
+					pause: l
+				}
+			}
+
+			var e = "particleground", f = a.jQuery;
+			a[e] = function (a, b) {
+				return new d(a, b)
+			}, a[e].defaults = {
+				minSpeedX: .1,
+				maxSpeedX: .7,
+				minSpeedY: .1,
+				maxSpeedY: .7,
+				directionX: "center",
+				directionY: "center",
+				density: 1e4,
+				dotColor: "#666666",
+				lineColor: "#666666",
+				particleRadius: 7,
+				lineWidth: 1,
+				curvedLines: !1,
+				proximity: 100,
+				parallax: !0,
+				parallaxMultiplier: 5,
+				onInit: function () {
+				},
+				onDestroy: function () {
+				}
+			}, f && (f.fn[e] = function (a) {
+				if ("string" == typeof arguments[0]) {
+					var b, c = arguments[0], g = Array.prototype.slice.call(arguments, 1);
+					return this.each(function () {
+						f.data(this, "plugin_" + e) && "function" == typeof f.data(this, "plugin_" + e)[c] && (b = f.data(this, "plugin_" + e)[c].apply(this, g))
+					}), void 0 !== b ? b : this
+				}
+				return "object" != typeof a && a ? void 0 : this.each(function () {
+					f.data(this, "plugin_" + e) || f.data(this, "plugin_" + e, new d(this, a))
+				})
+			})
+		}(window, document), /**
+		 * requestAnimationFrame polyfill by Erik Möller. fixes from Paul Irish and Tino Zijdel
+		 * @see: http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+		 * @see: http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
+		 * @license: MIT license
+		 */
+			function () {
+				for (var a = 0, b = ["ms", "moz", "webkit", "o"], c = 0; c < b.length && !window.requestAnimationFrame; ++c)window.requestAnimationFrame = window[b[c] + "RequestAnimationFrame"], window.cancelAnimationFrame = window[b[c] + "CancelAnimationFrame"] || window[b[c] + "CancelRequestAnimationFrame"];
+				window.requestAnimationFrame || (window.requestAnimationFrame = function (b) {
+					var c = (new Date).getTime(), d = Math.max(0, 16 - (c - a)), e = window.setTimeout(function () {
+						b(c + d)
+					}, d);
+					return a = c + d, e
+				}), window.cancelAnimationFrame || (window.cancelAnimationFrame = function (a) {
+					clearTimeout(a)
+				})
+			}();
+		window.addEventListener('DOMContentLoaded', function () {
+			particleground(document.getElementById('splash'), {
+				dotColor: 'rgba(214, 230, 255, 1)',
+				lineColor: 'rgba(214, 230, 255, 0.2)',
+				density: 5000,
+				proximity: 100,
+				particleRadius: 4,
+				maxSpeedX: 0.3,
+				maxSpeedY: 0.3,
+				parallax: false,
+				curvedLines: true
+			});
+		});
+    </script>
+</main>
+
+</body>
+</html>

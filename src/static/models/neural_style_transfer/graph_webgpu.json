@@ -1,0 +1,3057 @@
+{
+  "kernel_source": "\n#include <metal_stdlib>\nusing namespace metal;\n\n\n\nkernel void im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f(const device float *param_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          ushort index_thread[[thread_position_in_threadgroup]],\n                          ushort index_group[[threadgroup_position_in_grid]])\n{\n    const device float *im = data_buffer + meta_buffer[0];\n    device float *col = data_buffer + meta_buffer[1];\n\n    // const int N = meta_buffer[2];\n    const int C1 = meta_buffer[3];\n    const int H1 = meta_buffer[4];\n    const int W1 = meta_buffer[5];\n    const int H2 = meta_buffer[6];\n    const int W2 = meta_buffer[7];\n    const int KH = meta_buffer[8];\n    const int KW = meta_buffer[9];\n    const int SH = meta_buffer[10];\n    const int SW = meta_buffer[11];\n    const int PH = meta_buffer[12];\n    const int PW = meta_buffer[13];\n\n    const int H1P = H1 + 2 * PH;\n    const int W1P = W1 + 2 * PW;\n\n    const int w1 = (index_group % W1P) - PW;\n    const int h1 = (index_group / W1P % H1P) - PH;\n    const int  n = index_group / W1P / H1P;\n\n    for (int c1 = index_thread; c1 < C1; c1 += 64) {\n        const float v = (h1 < 0 || h1 >= H1 || w1 < 0 || w1 >= W1) ? 0 : im[((n * H1 + h1) * W1 + w1) * C1 + c1];\n\n        for (int kh = (h1 + PH) % SH; kh < KH; kh += SH) {\n            const int h2 = (h1 + PH - kh) / SH;\n            if (h2 < 0 || h2 >= H2) continue;\n\n            for (int kw = (w1 + PW) % SW; kw < KW; kw += SW) {\n                const int w2 = (w1 + PW - kw) / SW;\n                if (w2 < 0 || w2 >= W2) continue;\n\n                col[((((n * H2 + h2) * W2 + w2) * KH + kh) * KW + kw) * C1 + c1] = v;\n            }\n        }\n    }\n}\n\n\n#define ENABLE_SGEMM_BIAS 1\n\nkernel void sgemm_6ba3338f78c1ce0ac5280af659b366449f3e0f06de0719cbd787d119(const device float *weight_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          ushort index[[thread_index_in_threadgroup]],\n                          ushort2 group_position[[threadgroup_position_in_grid]])\n{\n    device float *C = data_buffer + meta_buffer[2];\n\n    const device float *load_target = (index & 32) \n        ? (weight_buffer + meta_buffer[1]) \n        : (data_buffer + meta_buffer[0]);\n\n    const int M = meta_buffer[4];\n    const int N = meta_buffer[5];\n    const int K = meta_buffer[6];\n\n    threadgroup float4 shared4[32 * 8 * 2];\n\n    const int stride_k = (index & 32) ? N : 1;\n    const int stride_mn = (index & 32) ? 1 : K;\n\n    const int m_offset = index & 7;\n    const int n_offset = index >> 3;\n\n    const int mn_load_offset = ((index & 32) ? group_position.y : group_position.x) * 64 + (index & 15) * 4;\n    const int k_load_offset = ((index & 16) ? 1 : 0);\n\n    int track0 = mn_load_offset * stride_mn + (k_load_offset + 0) * stride_k;\n    int track2 = track0 + 2 * stride_k;\n    int track4 = track0 + 4 * stride_k;\n    int track6 = track0 + 6 * stride_k;\n\n    const int max_MN = (index & 32) ? N : M;\n\n    int shared_offset4 = ((index & 32) ? 16 : 0) + k_load_offset * 32 + (index & 15);\n    int read_A_offset4 = m_offset * 2;\n    int read_B_offset4 = n_offset * 2 + 16;\n\n    float4 result[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};\n    int k = 0;\n\n    while (k < K)\n    {\n        {\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n            k += 2;\n        }\n\n        threadgroup_barrier(mem_flags::mem_threadgroup);\n\n        {\n            for (int k_sub = 0; k_sub < 8; k_sub++)\n            {\n                float4 a00 = shared4[32 * k_sub + read_A_offset4 + 0];\n                float4 a01 = shared4[32 * k_sub + read_A_offset4 + 1];\n                float4 b00 = shared4[32 * k_sub + read_B_offset4 + 0];\n                float4 b01 = shared4[32 * k_sub + read_B_offset4 + 1];\n\n                result[4][0]  += b00[0] * a00[2];\n                result[4][1]  += b00[1] * a00[2];\n                result[0][1]  += b00[1] * a00[0];\n                result[0][0]  += b00[0] * a00[0];\n                result[6][0]  += b00[0] * a00[3];\n                result[6][1]  += b00[1] * a00[3];\n                result[2][1]  += b00[1] * a00[1];\n                result[2][0]  += b00[0] * a00[1];\n                result[12][0] += b00[0] * a01[2];\n                result[12][1] += b00[1] * a01[2];\n                result[8][1]  += b00[1] * a01[0];\n                result[8][0]  += b00[0] * a01[0];\n                result[14][0] += b00[0] * a01[3];\n                result[14][1] += b00[1] * a01[3];\n                result[10][1] += b00[1] * a01[1];\n                result[10][0] += b00[0] * a01[1];\n\n                result[14][2] += b00[2] * a01[3];\n                result[14][3] += b00[3] * a01[3];\n                result[10][3] += b00[3] * a01[1];\n                result[10][2] += b00[2] * a01[1];\n                result[12][2] += b00[2] * a01[2];\n                result[12][3] += b00[3] * a01[2];\n                result[8][3]  += b00[3] * a01[0];\n                result[8][2]  += b00[2] * a01[0];\n                result[6][2]  += b00[2] * a00[3];\n                result[6][3]  += b00[3] * a00[3];\n                result[2][3]  += b00[3] * a00[1];\n                result[2][2]  += b00[2] * a00[1];\n                result[4][2]  += b00[2] * a00[2];\n                result[4][3]  += b00[3] * a00[2];\n                result[0][3]  += b00[3] * a00[0];\n                result[0][2]  += b00[2] * a00[0];\n\n                result[5][0]  += b01[0] * a00[2];\n                result[5][1]  += b01[1] * a00[2];\n                result[1][1]  += b01[1] * a00[0];\n                result[1][0]  += b01[0] * a00[0];\n                result[7][0]  += b01[0] * a00[3];\n                result[7][1]  += b01[1] * a00[3];\n                result[3][1]  += b01[1] * a00[1];\n                result[3][0]  += b01[0] * a00[1];\n                result[13][0] += b01[0] * a01[2];\n                result[13][1] += b01[1] * a01[2];\n                result[9][1]  += b01[1] * a01[0];\n                result[9][0]  += b01[0] * a01[0];\n                result[15][0] += b01[0] * a01[3];\n                result[15][1] += b01[1] * a01[3];\n                result[11][1] += b01[1] * a01[1];\n                result[11][0] += b01[0] * a01[1];\n\n                result[15][2] += b01[2] * a01[3];\n                result[15][3] += b01[3] * a01[3];\n                result[11][3] += b01[3] * a01[1];\n                result[11][2] += b01[2] * a01[1];\n                result[13][2] += b01[2] * a01[2];\n                result[13][3] += b01[3] * a01[2];\n                result[9][3]  += b01[3] * a01[0];\n                result[9][2]  += b01[2] * a01[0];\n                result[7][2]  += b01[2] * a00[3];\n                result[7][3]  += b01[3] * a00[3];\n                result[3][3]  += b01[3] * a00[1];\n                result[3][2]  += b01[2] * a00[1];\n                result[5][2]  += b01[2] * a00[2];\n                result[5][3]  += b01[3] * a00[2];\n                result[1][3]  += b01[3] * a00[0];\n                result[1][2]  += b01[2] * a00[0];\n            }\n        }\n\n        shared_offset4 ^= 32 * 8;\n        read_A_offset4 ^= 32 * 8;\n        read_B_offset4 ^= 32 * 8;\n        track0 += stride_k * 8;\n        track2 += stride_k * 8;\n        track4 += stride_k * 8;\n        track6 += stride_k * 8;\n    }\n\n    {\n    \n#if ENABLE_SGEMM_BIAS\n        float b[8];\n        const device float *bias = weight_buffer + meta_buffer[3];\n        for (int n_sub = 0; n_sub < 8; n_sub++)\n        {\n            b[n_sub] = (group_position.y * 64 + n_offset * 8 + n_sub < N)\n                ? bias[group_position.y * 64 + n_offset * 8 + n_sub]\n                : 0;\n        }\n#endif\n        \n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n            for (int n_sub1 = 0; n_sub1 < 2; n_sub1++)\n            {\n                for (int n_sub2 = 0; n_sub2 < 4; n_sub2++)\n                {\n                    const int m = group_position.x * 64 + m_offset * 8 + m_sub;\n                    const int n = group_position.y * 64 + n_offset * 8 + n_sub1 * 4 + n_sub2;\n\n#if ENABLE_SGEMM_BIAS\n                    (m < M && n < N) ? \n                        (C[m * N + n] = (result[m_sub * 2 + n_sub1][n_sub2] + b[n_sub1*4+n_sub2]>0?result[m_sub * 2 + n_sub1][n_sub2] + b[n_sub1*4+n_sub2]:(exp(result[m_sub * 2 + n_sub1][n_sub2] + b[n_sub1*4+n_sub2])-1))) :\n                        0;\n#else\n                    (m < M && n < N) ? \n                        (C[m * N + n] = (result[m_sub * 2 + n_sub1][n_sub2]>0?result[m_sub * 2 + n_sub1][n_sub2]:(exp(result[m_sub * 2 + n_sub1][n_sub2])-1))) : \n                        0;\n#endif\n                }\n            }\n        }\n    }\n}\n\n#undef ENABLE_SGEMM_BIAS\n\n\nkernel void axiswisescale_eb0047e7bd89ea7055f72ebafeb790e891bb2505194856bd8fe5e84d(const device float *weight_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float *X = data_buffer + meta_buffer[0];\n    device float *Y = data_buffer + meta_buffer[1];\n    const device float *S = weight_buffer + meta_buffer[2];\n    const int N = meta_buffer[3];\n    const int C = meta_buffer[4];\n  \n    for (int gid = index; gid < N; gid += num_threads) {\n        int c = gid % C;\n\n        float result = X[gid] * S[c];\n\n        Y[gid] = result;\n    }\n}\n\n\nkernel void axiswisebias_6be2df9cf1526331046f94fd7a124df8004489b3081b9db2c7e0fa03(const device float *weight_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float *X = data_buffer + meta_buffer[0];\n    device float *Y = data_buffer + meta_buffer[1];\n    const device float *B = weight_buffer + meta_buffer[2];\n    const int N = meta_buffer[3];\n    const int C = meta_buffer[4];\n  \n    for (int gid = index; gid < N * C; gid += num_threads) {\n        int c = gid % C;\n        int n = gid / C;\n\n        float result = X[gid] + B[c];\n        Y[n * C + c] = result;\n    }\n}\n\n\n#define ENABLE_SGEMM_BIAS 1\n\nkernel void sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac(const device float *weight_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          ushort index[[thread_index_in_threadgroup]],\n                          ushort2 group_position[[threadgroup_position_in_grid]])\n{\n    device float *C = data_buffer + meta_buffer[2];\n\n    const device float *load_target = (index & 32) \n        ? (weight_buffer + meta_buffer[1]) \n        : (data_buffer + meta_buffer[0]);\n\n    const int M = meta_buffer[4];\n    const int N = meta_buffer[5];\n    const int K = meta_buffer[6];\n\n    threadgroup float4 shared4[32 * 8 * 2];\n\n    const int stride_k = (index & 32) ? N : 1;\n    const int stride_mn = (index & 32) ? 1 : K;\n\n    const int m_offset = index & 7;\n    const int n_offset = index >> 3;\n\n    const int mn_load_offset = ((index & 32) ? group_position.y : group_position.x) * 64 + (index & 15) * 4;\n    const int k_load_offset = ((index & 16) ? 1 : 0);\n\n    int track0 = mn_load_offset * stride_mn + (k_load_offset + 0) * stride_k;\n    int track2 = track0 + 2 * stride_k;\n    int track4 = track0 + 4 * stride_k;\n    int track6 = track0 + 6 * stride_k;\n\n    const int max_MN = (index & 32) ? N : M;\n\n    int shared_offset4 = ((index & 32) ? 16 : 0) + k_load_offset * 32 + (index & 15);\n    int read_A_offset4 = m_offset * 2;\n    int read_B_offset4 = n_offset * 2 + 16;\n\n    float4 result[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};\n    int k = 0;\n\n    while (k < K)\n    {\n        {\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n            k += 2;\n        }\n\n        threadgroup_barrier(mem_flags::mem_threadgroup);\n\n        {\n            for (int k_sub = 0; k_sub < 8; k_sub++)\n            {\n                float4 a00 = shared4[32 * k_sub + read_A_offset4 + 0];\n                float4 a01 = shared4[32 * k_sub + read_A_offset4 + 1];\n                float4 b00 = shared4[32 * k_sub + read_B_offset4 + 0];\n                float4 b01 = shared4[32 * k_sub + read_B_offset4 + 1];\n\n                result[4][0]  += b00[0] * a00[2];\n                result[4][1]  += b00[1] * a00[2];\n                result[0][1]  += b00[1] * a00[0];\n                result[0][0]  += b00[0] * a00[0];\n                result[6][0]  += b00[0] * a00[3];\n                result[6][1]  += b00[1] * a00[3];\n                result[2][1]  += b00[1] * a00[1];\n                result[2][0]  += b00[0] * a00[1];\n                result[12][0] += b00[0] * a01[2];\n                result[12][1] += b00[1] * a01[2];\n                result[8][1]  += b00[1] * a01[0];\n                result[8][0]  += b00[0] * a01[0];\n                result[14][0] += b00[0] * a01[3];\n                result[14][1] += b00[1] * a01[3];\n                result[10][1] += b00[1] * a01[1];\n                result[10][0] += b00[0] * a01[1];\n\n                result[14][2] += b00[2] * a01[3];\n                result[14][3] += b00[3] * a01[3];\n                result[10][3] += b00[3] * a01[1];\n                result[10][2] += b00[2] * a01[1];\n                result[12][2] += b00[2] * a01[2];\n                result[12][3] += b00[3] * a01[2];\n                result[8][3]  += b00[3] * a01[0];\n                result[8][2]  += b00[2] * a01[0];\n                result[6][2]  += b00[2] * a00[3];\n                result[6][3]  += b00[3] * a00[3];\n                result[2][3]  += b00[3] * a00[1];\n                result[2][2]  += b00[2] * a00[1];\n                result[4][2]  += b00[2] * a00[2];\n                result[4][3]  += b00[3] * a00[2];\n                result[0][3]  += b00[3] * a00[0];\n                result[0][2]  += b00[2] * a00[0];\n\n                result[5][0]  += b01[0] * a00[2];\n                result[5][1]  += b01[1] * a00[2];\n                result[1][1]  += b01[1] * a00[0];\n                result[1][0]  += b01[0] * a00[0];\n                result[7][0]  += b01[0] * a00[3];\n                result[7][1]  += b01[1] * a00[3];\n                result[3][1]  += b01[1] * a00[1];\n                result[3][0]  += b01[0] * a00[1];\n                result[13][0] += b01[0] * a01[2];\n                result[13][1] += b01[1] * a01[2];\n                result[9][1]  += b01[1] * a01[0];\n                result[9][0]  += b01[0] * a01[0];\n                result[15][0] += b01[0] * a01[3];\n                result[15][1] += b01[1] * a01[3];\n                result[11][1] += b01[1] * a01[1];\n                result[11][0] += b01[0] * a01[1];\n\n                result[15][2] += b01[2] * a01[3];\n                result[15][3] += b01[3] * a01[3];\n                result[11][3] += b01[3] * a01[1];\n                result[11][2] += b01[2] * a01[1];\n                result[13][2] += b01[2] * a01[2];\n                result[13][3] += b01[3] * a01[2];\n                result[9][3]  += b01[3] * a01[0];\n                result[9][2]  += b01[2] * a01[0];\n                result[7][2]  += b01[2] * a00[3];\n                result[7][3]  += b01[3] * a00[3];\n                result[3][3]  += b01[3] * a00[1];\n                result[3][2]  += b01[2] * a00[1];\n                result[5][2]  += b01[2] * a00[2];\n                result[5][3]  += b01[3] * a00[2];\n                result[1][3]  += b01[3] * a00[0];\n                result[1][2]  += b01[2] * a00[0];\n            }\n        }\n\n        shared_offset4 ^= 32 * 8;\n        read_A_offset4 ^= 32 * 8;\n        read_B_offset4 ^= 32 * 8;\n        track0 += stride_k * 8;\n        track2 += stride_k * 8;\n        track4 += stride_k * 8;\n        track6 += stride_k * 8;\n    }\n\n    {\n    \n#if ENABLE_SGEMM_BIAS\n        float b[8];\n        const device float *bias = weight_buffer + meta_buffer[3];\n        for (int n_sub = 0; n_sub < 8; n_sub++)\n        {\n            b[n_sub] = (group_position.y * 64 + n_offset * 8 + n_sub < N)\n                ? bias[group_position.y * 64 + n_offset * 8 + n_sub]\n                : 0;\n        }\n#endif\n        \n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n            for (int n_sub1 = 0; n_sub1 < 2; n_sub1++)\n            {\n                for (int n_sub2 = 0; n_sub2 < 4; n_sub2++)\n                {\n                    const int m = group_position.x * 64 + m_offset * 8 + m_sub;\n                    const int n = group_position.y * 64 + n_offset * 8 + n_sub1 * 4 + n_sub2;\n\n#if ENABLE_SGEMM_BIAS\n                    (m < M && n < N) ? \n                        (C[m * N + n] = (result[m_sub * 2 + n_sub1][n_sub2] + b[n_sub1*4+n_sub2]>0?result[m_sub * 2 + n_sub1][n_sub2] + b[n_sub1*4+n_sub2]:0)) :\n                        0;\n#else\n                    (m < M && n < N) ? \n                        (C[m * N + n] = (result[m_sub * 2 + n_sub1][n_sub2]>0?result[m_sub * 2 + n_sub1][n_sub2]:0)) : \n                        0;\n#endif\n                }\n            }\n        }\n    }\n}\n\n#undef ENABLE_SGEMM_BIAS\n\n\n#define ENABLE_SGEMM_BIAS 1\n\nkernel void sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa(const device float *weight_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          ushort index[[thread_index_in_threadgroup]],\n                          ushort2 group_position[[threadgroup_position_in_grid]])\n{\n    device float *C = data_buffer + meta_buffer[2];\n\n    const device float *load_target = (index & 32) \n        ? (weight_buffer + meta_buffer[1]) \n        : (data_buffer + meta_buffer[0]);\n\n    const int M = meta_buffer[4];\n    const int N = meta_buffer[5];\n    const int K = meta_buffer[6];\n\n    threadgroup float4 shared4[32 * 8 * 2];\n\n    const int stride_k = (index & 32) ? N : 1;\n    const int stride_mn = (index & 32) ? 1 : K;\n\n    const int m_offset = index & 7;\n    const int n_offset = index >> 3;\n\n    const int mn_load_offset = ((index & 32) ? group_position.y : group_position.x) * 64 + (index & 15) * 4;\n    const int k_load_offset = ((index & 16) ? 1 : 0);\n\n    int track0 = mn_load_offset * stride_mn + (k_load_offset + 0) * stride_k;\n    int track2 = track0 + 2 * stride_k;\n    int track4 = track0 + 4 * stride_k;\n    int track6 = track0 + 6 * stride_k;\n\n    const int max_MN = (index & 32) ? N : M;\n\n    int shared_offset4 = ((index & 32) ? 16 : 0) + k_load_offset * 32 + (index & 15);\n    int read_A_offset4 = m_offset * 2;\n    int read_B_offset4 = n_offset * 2 + 16;\n\n    float4 result[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};\n    int k = 0;\n\n    while (k < K)\n    {\n        {\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n            k += 2;\n        }\n\n        threadgroup_barrier(mem_flags::mem_threadgroup);\n\n        {\n            for (int k_sub = 0; k_sub < 8; k_sub++)\n            {\n                float4 a00 = shared4[32 * k_sub + read_A_offset4 + 0];\n                float4 a01 = shared4[32 * k_sub + read_A_offset4 + 1];\n                float4 b00 = shared4[32 * k_sub + read_B_offset4 + 0];\n                float4 b01 = shared4[32 * k_sub + read_B_offset4 + 1];\n\n                result[4][0]  += b00[0] * a00[2];\n                result[4][1]  += b00[1] * a00[2];\n                result[0][1]  += b00[1] * a00[0];\n                result[0][0]  += b00[0] * a00[0];\n                result[6][0]  += b00[0] * a00[3];\n                result[6][1]  += b00[1] * a00[3];\n                result[2][1]  += b00[1] * a00[1];\n                result[2][0]  += b00[0] * a00[1];\n                result[12][0] += b00[0] * a01[2];\n                result[12][1] += b00[1] * a01[2];\n                result[8][1]  += b00[1] * a01[0];\n                result[8][0]  += b00[0] * a01[0];\n                result[14][0] += b00[0] * a01[3];\n                result[14][1] += b00[1] * a01[3];\n                result[10][1] += b00[1] * a01[1];\n                result[10][0] += b00[0] * a01[1];\n\n                result[14][2] += b00[2] * a01[3];\n                result[14][3] += b00[3] * a01[3];\n                result[10][3] += b00[3] * a01[1];\n                result[10][2] += b00[2] * a01[1];\n                result[12][2] += b00[2] * a01[2];\n                result[12][3] += b00[3] * a01[2];\n                result[8][3]  += b00[3] * a01[0];\n                result[8][2]  += b00[2] * a01[0];\n                result[6][2]  += b00[2] * a00[3];\n                result[6][3]  += b00[3] * a00[3];\n                result[2][3]  += b00[3] * a00[1];\n                result[2][2]  += b00[2] * a00[1];\n                result[4][2]  += b00[2] * a00[2];\n                result[4][3]  += b00[3] * a00[2];\n                result[0][3]  += b00[3] * a00[0];\n                result[0][2]  += b00[2] * a00[0];\n\n                result[5][0]  += b01[0] * a00[2];\n                result[5][1]  += b01[1] * a00[2];\n                result[1][1]  += b01[1] * a00[0];\n                result[1][0]  += b01[0] * a00[0];\n                result[7][0]  += b01[0] * a00[3];\n                result[7][1]  += b01[1] * a00[3];\n                result[3][1]  += b01[1] * a00[1];\n                result[3][0]  += b01[0] * a00[1];\n                result[13][0] += b01[0] * a01[2];\n                result[13][1] += b01[1] * a01[2];\n                result[9][1]  += b01[1] * a01[0];\n                result[9][0]  += b01[0] * a01[0];\n                result[15][0] += b01[0] * a01[3];\n                result[15][1] += b01[1] * a01[3];\n                result[11][1] += b01[1] * a01[1];\n                result[11][0] += b01[0] * a01[1];\n\n                result[15][2] += b01[2] * a01[3];\n                result[15][3] += b01[3] * a01[3];\n                result[11][3] += b01[3] * a01[1];\n                result[11][2] += b01[2] * a01[1];\n                result[13][2] += b01[2] * a01[2];\n                result[13][3] += b01[3] * a01[2];\n                result[9][3]  += b01[3] * a01[0];\n                result[9][2]  += b01[2] * a01[0];\n                result[7][2]  += b01[2] * a00[3];\n                result[7][3]  += b01[3] * a00[3];\n                result[3][3]  += b01[3] * a00[1];\n                result[3][2]  += b01[2] * a00[1];\n                result[5][2]  += b01[2] * a00[2];\n                result[5][3]  += b01[3] * a00[2];\n                result[1][3]  += b01[3] * a00[0];\n                result[1][2]  += b01[2] * a00[0];\n            }\n        }\n\n        shared_offset4 ^= 32 * 8;\n        read_A_offset4 ^= 32 * 8;\n        read_B_offset4 ^= 32 * 8;\n        track0 += stride_k * 8;\n        track2 += stride_k * 8;\n        track4 += stride_k * 8;\n        track6 += stride_k * 8;\n    }\n\n    {\n    \n#if ENABLE_SGEMM_BIAS\n        float b[8];\n        const device float *bias = weight_buffer + meta_buffer[3];\n        for (int n_sub = 0; n_sub < 8; n_sub++)\n        {\n            b[n_sub] = (group_position.y * 64 + n_offset * 8 + n_sub < N)\n                ? bias[group_position.y * 64 + n_offset * 8 + n_sub]\n                : 0;\n        }\n#endif\n        \n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n            for (int n_sub1 = 0; n_sub1 < 2; n_sub1++)\n            {\n                for (int n_sub2 = 0; n_sub2 < 4; n_sub2++)\n                {\n                    const int m = group_position.x * 64 + m_offset * 8 + m_sub;\n                    const int n = group_position.y * 64 + n_offset * 8 + n_sub1 * 4 + n_sub2;\n\n#if ENABLE_SGEMM_BIAS\n                    (m < M && n < N) ? \n                        (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2] + b[n_sub1*4+n_sub2]) :\n                        0;\n#else\n                    (m < M && n < N) ? \n                        (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : \n                        0;\n#endif\n                }\n            }\n        }\n    }\n}\n\n#undef ENABLE_SGEMM_BIAS\n\n\nkernel void elementwisesum_3bb47fea1820a8c379f9199311fcaeae0fe1c6314514441215d5dc85(const device float *weight_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float *X0 = data_buffer + meta_buffer[0];\n    const device float *X1 = data_buffer + meta_buffer[1];\n    device float *Y = data_buffer + meta_buffer[2];\n    const int N = meta_buffer[3];\n  \n    for (int gid = index; gid < N; gid += num_threads) {\n        float result = X0[gid] + X1[gid];\n\n        Y[gid] = result;\n    }\n}\n\n\n#define ENABLE_SGEMM_BIAS 0\n\nkernel void sgemm_f7c352eb857f7f32f1a27fc3252273e0a5c046ba30bcec62e3f73283(const device float *weight_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          ushort index[[thread_index_in_threadgroup]],\n                          ushort2 group_position[[threadgroup_position_in_grid]])\n{\n    device float *C = data_buffer + meta_buffer[2];\n\n    const device float *load_target = (index & 32) \n        ? (weight_buffer + meta_buffer[1]) \n        : (data_buffer + meta_buffer[0]);\n\n    const int M = meta_buffer[4];\n    const int N = meta_buffer[5];\n    const int K = meta_buffer[6];\n\n    threadgroup float4 shared4[32 * 8 * 2];\n\n    const int stride_k = (index & 32) ? N : 1;\n    const int stride_mn = (index & 32) ? 1 : K;\n\n    const int m_offset = index & 7;\n    const int n_offset = index >> 3;\n\n    const int mn_load_offset = ((index & 32) ? group_position.y : group_position.x) * 64 + (index & 15) * 4;\n    const int k_load_offset = ((index & 16) ? 1 : 0);\n\n    int track0 = mn_load_offset * stride_mn + (k_load_offset + 0) * stride_k;\n    int track2 = track0 + 2 * stride_k;\n    int track4 = track0 + 4 * stride_k;\n    int track6 = track0 + 6 * stride_k;\n\n    const int max_MN = (index & 32) ? N : M;\n\n    int shared_offset4 = ((index & 32) ? 16 : 0) + k_load_offset * 32 + (index & 15);\n    int read_A_offset4 = m_offset * 2;\n    int read_B_offset4 = n_offset * 2 + 16;\n\n    float4 result[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};\n    int k = 0;\n\n    while (k < K)\n    {\n        {\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n            k += 2;\n        }\n\n        threadgroup_barrier(mem_flags::mem_threadgroup);\n\n        {\n            for (int k_sub = 0; k_sub < 8; k_sub++)\n            {\n                float4 a00 = shared4[32 * k_sub + read_A_offset4 + 0];\n                float4 a01 = shared4[32 * k_sub + read_A_offset4 + 1];\n                float4 b00 = shared4[32 * k_sub + read_B_offset4 + 0];\n                float4 b01 = shared4[32 * k_sub + read_B_offset4 + 1];\n\n                result[4][0]  += b00[0] * a00[2];\n                result[4][1]  += b00[1] * a00[2];\n                result[0][1]  += b00[1] * a00[0];\n                result[0][0]  += b00[0] * a00[0];\n                result[6][0]  += b00[0] * a00[3];\n                result[6][1]  += b00[1] * a00[3];\n                result[2][1]  += b00[1] * a00[1];\n                result[2][0]  += b00[0] * a00[1];\n                result[12][0] += b00[0] * a01[2];\n                result[12][1] += b00[1] * a01[2];\n                result[8][1]  += b00[1] * a01[0];\n                result[8][0]  += b00[0] * a01[0];\n                result[14][0] += b00[0] * a01[3];\n                result[14][1] += b00[1] * a01[3];\n                result[10][1] += b00[1] * a01[1];\n                result[10][0] += b00[0] * a01[1];\n\n                result[14][2] += b00[2] * a01[3];\n                result[14][3] += b00[3] * a01[3];\n                result[10][3] += b00[3] * a01[1];\n                result[10][2] += b00[2] * a01[1];\n                result[12][2] += b00[2] * a01[2];\n                result[12][3] += b00[3] * a01[2];\n                result[8][3]  += b00[3] * a01[0];\n                result[8][2]  += b00[2] * a01[0];\n                result[6][2]  += b00[2] * a00[3];\n                result[6][3]  += b00[3] * a00[3];\n                result[2][3]  += b00[3] * a00[1];\n                result[2][2]  += b00[2] * a00[1];\n                result[4][2]  += b00[2] * a00[2];\n                result[4][3]  += b00[3] * a00[2];\n                result[0][3]  += b00[3] * a00[0];\n                result[0][2]  += b00[2] * a00[0];\n\n                result[5][0]  += b01[0] * a00[2];\n                result[5][1]  += b01[1] * a00[2];\n                result[1][1]  += b01[1] * a00[0];\n                result[1][0]  += b01[0] * a00[0];\n                result[7][0]  += b01[0] * a00[3];\n                result[7][1]  += b01[1] * a00[3];\n                result[3][1]  += b01[1] * a00[1];\n                result[3][0]  += b01[0] * a00[1];\n                result[13][0] += b01[0] * a01[2];\n                result[13][1] += b01[1] * a01[2];\n                result[9][1]  += b01[1] * a01[0];\n                result[9][0]  += b01[0] * a01[0];\n                result[15][0] += b01[0] * a01[3];\n                result[15][1] += b01[1] * a01[3];\n                result[11][1] += b01[1] * a01[1];\n                result[11][0] += b01[0] * a01[1];\n\n                result[15][2] += b01[2] * a01[3];\n                result[15][3] += b01[3] * a01[3];\n                result[11][3] += b01[3] * a01[1];\n                result[11][2] += b01[2] * a01[1];\n                result[13][2] += b01[2] * a01[2];\n                result[13][3] += b01[3] * a01[2];\n                result[9][3]  += b01[3] * a01[0];\n                result[9][2]  += b01[2] * a01[0];\n                result[7][2]  += b01[2] * a00[3];\n                result[7][3]  += b01[3] * a00[3];\n                result[3][3]  += b01[3] * a00[1];\n                result[3][2]  += b01[2] * a00[1];\n                result[5][2]  += b01[2] * a00[2];\n                result[5][3]  += b01[3] * a00[2];\n                result[1][3]  += b01[3] * a00[0];\n                result[1][2]  += b01[2] * a00[0];\n            }\n        }\n\n        shared_offset4 ^= 32 * 8;\n        read_A_offset4 ^= 32 * 8;\n        read_B_offset4 ^= 32 * 8;\n        track0 += stride_k * 8;\n        track2 += stride_k * 8;\n        track4 += stride_k * 8;\n        track6 += stride_k * 8;\n    }\n\n    {\n    \n#if ENABLE_SGEMM_BIAS\n        float b[8];\n        const device float *bias = weight_buffer + meta_buffer[3];\n        for (int n_sub = 0; n_sub < 8; n_sub++)\n        {\n            b[n_sub] = (group_position.y * 64 + n_offset * 8 + n_sub < N)\n                ? bias[group_position.y * 64 + n_offset * 8 + n_sub]\n                : 0;\n        }\n#endif\n        \n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n            for (int n_sub1 = 0; n_sub1 < 2; n_sub1++)\n            {\n                for (int n_sub2 = 0; n_sub2 < 4; n_sub2++)\n                {\n                    const int m = group_position.x * 64 + m_offset * 8 + m_sub;\n                    const int n = group_position.y * 64 + n_offset * 8 + n_sub1 * 4 + n_sub2;\n\n#if ENABLE_SGEMM_BIAS\n                    (m < M && n < N) ? \n                        (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2] + b[n_sub1*4+n_sub2]) :\n                        0;\n#else\n                    (m < M && n < N) ? \n                        (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : \n                        0;\n#endif\n                }\n            }\n        }\n    }\n}\n\n#undef ENABLE_SGEMM_BIAS\n\n\nkernel void col2im_4acb2698e5a17440fd70c40ff9ad52a79bf489ffdf7bf17453d6b928(const device float *param_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float *col = data_buffer + meta_buffer[1];\n    device float *im = data_buffer + meta_buffer[0];\n\n    const int N = meta_buffer[2];\n    const int C1 = meta_buffer[5];\n    const int H1 = meta_buffer[6];\n    const int W1 = meta_buffer[7];\n    const int H2 = meta_buffer[3];\n    const int W2 = meta_buffer[4];\n    const int KH = meta_buffer[8];\n    const int KW = meta_buffer[9];\n    const int SH = meta_buffer[10];\n    const int SW = meta_buffer[11];\n    const int PH = meta_buffer[12];\n    const int PW = meta_buffer[13];\n\n    for (int gid = index; gid < N*H1*W1*C1; gid += num_threads) {\n        const int c1 = gid % C1;\n        const int w1 = gid / C1 % W1;\n        const int h1 = gid / C1 / W1 % H1;\n        const int n  = gid / C1 / W1 / H1;\n\n        float sum = 0;\n        \n        for (int kh = 0; kh < KH; kh++) {\n            const int h2 = (h1 + PH - kh) / SH;\n            if ((h1 + PH - kh) % SH != 0 || h2 < 0 || h2 >= H2) continue;\n\n            for (int kw = 0; kw < KW; kw++) {\n                const int w2 = (w1 + PW - kw) / SW;\n                if ((w1 + PW - kw) % SW != 0 || w2 < 0 || w2 >= W2) continue;\n                \n                sum += col[((((n * H2 + h2) * W2 + w2) * KH + kh) * KW + kw) * C1 + c1];\n            }\n        }\n        \n        im[gid] = sum; \n    }\n}\n\n\nkernel void elu_c5570868e1ef853205898365aac544f7d5b3e4f367a8cccdbf2beda5(const device float *param_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float *X = data_buffer + meta_buffer[0];\n    device float *Y = data_buffer + meta_buffer[1];\n\n    const int N = meta_buffer[2];\n  \n    for (int gid = index; gid < N; gid += num_threads) {\n        float result = X[gid];\n        result = result < 0.0 ? (exp(result)-1) : result;      \n\n        Y[gid] = result;\n    }\n}\n\n\nkernel void tanh_4d093f262c150685bb3ba8649b1aedd8a91b1d4e42056449061f72a2(const device float *param_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float *X = data_buffer + meta_buffer[0];\n    device float *Y = data_buffer + meta_buffer[1];\n\n    const int N = meta_buffer[2];\n  \n    for (int gid = index; gid < N; gid += num_threads) {\n        Y[gid] = tanh(X[gid]);\n    }\n}\n\n\nkernel void scalaraffine_3daf34a046eb693a4a93f810672675819980cfa4239b993889317ec5(const device float *param_buffer[[buffer(0)]],\n                          device float *data_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float *X = data_buffer + meta_buffer[0];\n    device float *Y = data_buffer + meta_buffer[1];\n\n    const float scale = *((const device float *)(& meta_buffer[3]));\n    const float bias = *((const device float *)(& meta_buffer[4]));\n    const int N = meta_buffer[2];\n\n    for (int gid = index; gid < N; gid += num_threads) {\n        float result = X[gid];\n        result = result * scale + bias;\n        Y[gid] = result;\n    }\n}\n",
+  "exec_infos": [
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 30400,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        196,
+        14,
+        0,
+        1,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        144,
+        0,
+        0,
+        0,
+        192,
+        0,
+        0,
+        0,
+        144,
+        0,
+        0,
+        0,
+        192,
+        0,
+        0,
+        0,
+        9,
+        0,
+        0,
+        0,
+        9,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_6ba3338f78c1ce0ac5280af659b366449f3e0f06de0719cbd787d119",
+      "threadgroups_per_grid": {
+        "width": 432,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        196,
+        14,
+        0,
+        64,
+        228,
+        22,
+        0,
+        0,
+        68,
+        1,
+        0,
+        32,
+        228,
+        22,
+        0,
+        0,
+        108,
+        0,
+        0,
+        32,
+        0,
+        0,
+        0,
+        243,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "axiswisescale_eb0047e7bd89ea7055f72ebafeb790e891bb2505194856bd8fe5e84d",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        64,
+        2,
+        11,
+        0,
+        0,
+        128,
+        13,
+        0,
+        32,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "axiswisebias_6be2df9cf1526331046f94fd7a124df8004489b3081b9db2c7e0fa03",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        0,
+        228,
+        22,
+        0,
+        0,
+        108,
+        0,
+        0,
+        32,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 28324,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        196,
+        14,
+        0,
+        1,
+        0,
+        0,
+        0,
+        32,
+        0,
+        0,
+        0,
+        144,
+        0,
+        0,
+        0,
+        192,
+        0,
+        0,
+        0,
+        72,
+        0,
+        0,
+        0,
+        96,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_6ba3338f78c1ce0ac5280af659b366449f3e0f06de0719cbd787d119",
+      "threadgroups_per_grid": {
+        "width": 108,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        196,
+        14,
+        0,
+        160,
+        2,
+        23,
+        0,
+        0,
+        68,
+        1,
+        0,
+        160,
+        130,
+        23,
+        0,
+        0,
+        27,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "axiswisescale_eb0047e7bd89ea7055f72ebafeb790e891bb2505194856bd8fe5e84d",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        0,
+        2,
+        11,
+        0,
+        0,
+        192,
+        6,
+        0,
+        64,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "axiswisebias_6be2df9cf1526331046f94fd7a124df8004489b3081b9db2c7e0fa03",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        224,
+        196,
+        22,
+        0,
+        0,
+        27,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 7252,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        4,
+        8,
+        0,
+        1,
+        0,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        72,
+        0,
+        0,
+        0,
+        96,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_6ba3338f78c1ce0ac5280af659b366449f3e0f06de0719cbd787d119",
+      "threadgroups_per_grid": {
+        "width": 27,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        4,
+        8,
+        0,
+        0,
+        195,
+        25,
+        0,
+        0,
+        68,
+        1,
+        0,
+        96,
+        2,
+        11,
+        0,
+        192,
+        6,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "axiswisescale_eb0047e7bd89ea7055f72ebafeb790e891bb2505194856bd8fe5e84d",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        96,
+        1,
+        11,
+        0,
+        0,
+        96,
+        3,
+        0,
+        128,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "axiswisebias_6be2df9cf1526331046f94fd7a124df8004489b3081b9db2c7e0fa03",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        96,
+        131,
+        15,
+        0,
+        192,
+        6,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 1900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        164,
+        4,
+        0,
+        1,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 27,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        164,
+        4,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0,
+        4,
+        35,
+        0,
+        96,
+        196,
+        17,
+        0,
+        192,
+        6,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 1900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        4,
+        35,
+        0,
+        0,
+        164,
+        4,
+        0,
+        1,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 27,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        164,
+        4,
+        0,
+        224,
+        192,
+        8,
+        0,
+        0,
+        100,
+        38,
+        0,
+        0,
+        197,
+        27,
+        0,
+        192,
+        6,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_3bb47fea1820a8c379f9199311fcaeae0fe1c6314514441215d5dc85",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        100,
+        38,
+        0,
+        0,
+        68,
+        1,
+        0,
+        0,
+        100,
+        38,
+        0,
+        0,
+        96,
+        3,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 1900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        100,
+        38,
+        0,
+        0,
+        68,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 27,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        224,
+        196,
+        17,
+        0,
+        0,
+        4,
+        35,
+        0,
+        224,
+        131,
+        15,
+        0,
+        192,
+        6,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 1900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        4,
+        35,
+        0,
+        0,
+        164,
+        4,
+        0,
+        1,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 27,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        164,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        68,
+        1,
+        0,
+        128,
+        196,
+        27,
+        0,
+        192,
+        6,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_3bb47fea1820a8c379f9199311fcaeae0fe1c6314514441215d5dc85",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        100,
+        38,
+        0,
+        0,
+        68,
+        1,
+        0,
+        0,
+        96,
+        3,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 1900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        164,
+        4,
+        0,
+        1,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 27,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        164,
+        4,
+        0,
+        224,
+        2,
+        11,
+        0,
+        0,
+        4,
+        35,
+        0,
+        32,
+        197,
+        22,
+        0,
+        192,
+        6,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 1900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        4,
+        35,
+        0,
+        0,
+        164,
+        4,
+        0,
+        1,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 27,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        164,
+        4,
+        0,
+        96,
+        132,
+        15,
+        0,
+        0,
+        100,
+        38,
+        0,
+        0,
+        196,
+        27,
+        0,
+        192,
+        6,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_3bb47fea1820a8c379f9199311fcaeae0fe1c6314514441215d5dc85",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        100,
+        38,
+        0,
+        0,
+        68,
+        1,
+        0,
+        0,
+        100,
+        38,
+        0,
+        0,
+        96,
+        3,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 1900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        100,
+        38,
+        0,
+        0,
+        68,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 27,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        131,
+        23,
+        0,
+        0,
+        4,
+        35,
+        0,
+        128,
+        195,
+        27,
+        0,
+        192,
+        6,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 1900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        4,
+        35,
+        0,
+        0,
+        164,
+        4,
+        0,
+        1,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 27,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        164,
+        4,
+        0,
+        0,
+        64,
+        2,
+        0,
+        0,
+        68,
+        1,
+        0,
+        224,
+        66,
+        13,
+        0,
+        192,
+        6,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_3bb47fea1820a8c379f9199311fcaeae0fe1c6314514441215d5dc85",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        100,
+        38,
+        0,
+        0,
+        68,
+        1,
+        0,
+        0,
+        96,
+        3,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 1900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        164,
+        4,
+        0,
+        1,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_48135451fdf824c186bf4bf018d2539bb3fcb30d7952dce79c647cac",
+      "threadgroups_per_grid": {
+        "width": 27,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        164,
+        4,
+        0,
+        96,
+        67,
+        13,
+        0,
+        0,
+        100,
+        38,
+        0,
+        224,
+        0,
+        11,
+        0,
+        192,
+        6,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "im2col_3b806e45d4a0edf8b74b5cb4066255822a619fa389d4d5977552397f",
+      "threadgroups_per_grid": {
+        "width": 1900,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        100,
+        38,
+        0,
+        0,
+        4,
+        8,
+        0,
+        1,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_dd6c729a1d77e75ff084d65fc479a9f521554344999be666f91ff2fa",
+      "threadgroups_per_grid": {
+        "width": 27,
+        "height": 2,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        4,
+        8,
+        0,
+        224,
+        4,
+        20,
+        0,
+        0,
+        164,
+        4,
+        0,
+        32,
+        192,
+        8,
+        0,
+        192,
+        6,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        128,
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elementwisesum_3bb47fea1820a8c379f9199311fcaeae0fe1c6314514441215d5dc85",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        164,
+        4,
+        0,
+        0,
+        68,
+        1,
+        0,
+        0,
+        164,
+        4,
+        0,
+        0,
+        96,
+        3,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_f7c352eb857f7f32f1a27fc3252273e0a5c046ba30bcec62e3f73283",
+      "threadgroups_per_grid": {
+        "width": 27,
+        "height": 16,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        164,
+        4,
+        0,
+        0,
+        192,
+        6,
+        0,
+        0,
+        4,
+        8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        192,
+        6,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "col2im_4acb2698e5a17440fd70c40ff9ad52a79bf489ffdf7bf17453d6b928",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        4,
+        8,
+        0,
+        1,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        48,
+        0,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        72,
+        0,
+        0,
+        0,
+        96,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "axiswisebias_6be2df9cf1526331046f94fd7a124df8004489b3081b9db2c7e0fa03",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        0,
+        195,
+        27,
+        0,
+        0,
+        27,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elu_c5570868e1ef853205898365aac544f7d5b3e4f367a8cccdbf2beda5",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        0,
+        192,
+        6,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "axiswisescale_eb0047e7bd89ea7055f72ebafeb790e891bb2505194856bd8fe5e84d",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        64,
+        195,
+        27,
+        0,
+        0,
+        192,
+        6,
+        0,
+        64,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "axiswisebias_6be2df9cf1526331046f94fd7a124df8004489b3081b9db2c7e0fa03",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        160,
+        192,
+        8,
+        0,
+        0,
+        27,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_f7c352eb857f7f32f1a27fc3252273e0a5c046ba30bcec62e3f73283",
+      "threadgroups_per_grid": {
+        "width": 108,
+        "height": 8,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        224,
+        68,
+        22,
+        0,
+        0,
+        196,
+        14,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        27,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "col2im_4acb2698e5a17440fd70c40ff9ad52a79bf489ffdf7bf17453d6b928",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        196,
+        14,
+        0,
+        1,
+        0,
+        0,
+        0,
+        72,
+        0,
+        0,
+        0,
+        96,
+        0,
+        0,
+        0,
+        32,
+        0,
+        0,
+        0,
+        144,
+        0,
+        0,
+        0,
+        192,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "axiswisebias_6be2df9cf1526331046f94fd7a124df8004489b3081b9db2c7e0fa03",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        224,
+        1,
+        11,
+        0,
+        0,
+        108,
+        0,
+        0,
+        32,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "elu_c5570868e1ef853205898365aac544f7d5b3e4f367a8cccdbf2beda5",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        0,
+        128,
+        13,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "axiswisescale_eb0047e7bd89ea7055f72ebafeb790e891bb2505194856bd8fe5e84d",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        224,
+        130,
+        23,
+        0,
+        0,
+        128,
+        13,
+        0,
+        32,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "axiswisebias_6be2df9cf1526331046f94fd7a124df8004489b3081b9db2c7e0fa03",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        0,
+        192,
+        8,
+        0,
+        0,
+        108,
+        0,
+        0,
+        32,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "sgemm_f7c352eb857f7f32f1a27fc3252273e0a5c046ba30bcec62e3f73283",
+      "threadgroups_per_grid": {
+        "width": 432,
+        "height": 4,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 64,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        160,
+        197,
+        22,
+        0,
+        0,
+        196,
+        14,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        108,
+        0,
+        0,
+        243,
+        0,
+        0,
+        0,
+        32,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "col2im_4acb2698e5a17440fd70c40ff9ad52a79bf489ffdf7bf17453d6b928",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        196,
+        14,
+        0,
+        1,
+        0,
+        0,
+        0,
+        144,
+        0,
+        0,
+        0,
+        192,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        144,
+        0,
+        0,
+        0,
+        192,
+        0,
+        0,
+        0,
+        9,
+        0,
+        0,
+        0,
+        9,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "axiswisebias_6be2df9cf1526331046f94fd7a124df8004489b3081b9db2c7e0fa03",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        128,
+        197,
+        27,
+        0,
+        0,
+        108,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "tanh_4d093f262c150685bb3ba8649b1aedd8a91b1d4e42056449061f72a2",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0
+      ]
+    },
+    {
+      "entry_func_name": "scalaraffine_3daf34a046eb693a4a93f810672675819980cfa4239b993889317ec5",
+      "threadgroups_per_grid": {
+        "width": 8,
+        "height": 1,
+        "depth": 1
+      },
+      "threads_per_thread_group": {
+        "width": 1024,
+        "height": 1,
+        "depth": 1
+      },
+      "meta_buffer": [
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        0,
+        68,
+        1,
+        0,
+        0,
+        0,
+        255,
+        66,
+        0,
+        0,
+        255,
+        66
+      ]
+    }
+  ],
+  "weight_allocation": {
+    "total_size": 1820035,
+    "allocation": {
+      "ConstantVariable33": {
+        "name": "ConstantVariable33",
+        "offset": 0,
+        "size": 147456
+      },
+      "ConstantVariable49": {
+        "name": "ConstantVariable49",
+        "offset": 147456,
+        "size": 147456
+      },
+      "ConstantVariable82": {
+        "name": "ConstantVariable82",
+        "offset": 294912,
+        "size": 147456
+      },
+      "ConstantVariable4": {
+        "name": "ConstantVariable4",
+        "offset": 442368,
+        "size": 131072
+      },
+      "ConstantVariable121": {
+        "name": "ConstantVariable121",
+        "offset": 573440,
+        "size": 32
+      },
+      "ConstantVariable131": {
+        "name": "ConstantVariable131",
+        "offset": 573472,
+        "size": 128
+      },
+      "ConstantVariable119": {
+        "name": "ConstantVariable119",
+        "offset": 573600,
+        "size": 64
+      },
+      "ConstantVariable84": {
+        "name": "ConstantVariable84",
+        "offset": 573664,
+        "size": 147456
+      },
+      "ConstantVariable130": {
+        "name": "ConstantVariable130",
+        "offset": 721120,
+        "size": 128
+      },
+      "ConstantVariable96": {
+        "name": "ConstantVariable96",
+        "offset": 721248,
+        "size": 128
+      },
+      "ConstantVariable64": {
+        "name": "ConstantVariable64",
+        "offset": 721376,
+        "size": 32
+      },
+      "ConstantVariable94": {
+        "name": "ConstantVariable94",
+        "offset": 721408,
+        "size": 64
+      },
+      "ConstantVariable92": {
+        "name": "ConstantVariable92",
+        "offset": 721472,
+        "size": 32
+      },
+      "ConstantVariable81": {
+        "name": "ConstantVariable81",
+        "offset": 721504,
+        "size": 128
+      },
+      "ConstantVariable39": {
+        "name": "ConstantVariable39",
+        "offset": 721632,
+        "size": 147456
+      },
+      "ConstantVariable129": {
+        "name": "ConstantVariable129",
+        "offset": 869088,
+        "size": 128
+      },
+      "ConstantVariable55": {
+        "name": "ConstantVariable55",
+        "offset": 869216,
+        "size": 147456
+      },
+      "ConstantVariable97": {
+        "name": "ConstantVariable97",
+        "offset": 1016672,
+        "size": 128
+      },
+      "ConstantVariable124": {
+        "name": "ConstantVariable124",
+        "offset": 1016800,
+        "size": 128
+      },
+      "ConstantVariable41": {
+        "name": "ConstantVariable41",
+        "offset": 1016928,
+        "size": 147456
+      },
+      "ConstantVariable122": {
+        "name": "ConstantVariable122",
+        "offset": 1164384,
+        "size": 128
+      },
+      "ConstantVariable90": {
+        "name": "ConstantVariable90",
+        "offset": 1164512,
+        "size": 147456
+      },
+      "ConstantVariable57": {
+        "name": "ConstantVariable57",
+        "offset": 1311968,
+        "size": 147456
+      },
+      "ConstantVariable7": {
+        "name": "ConstantVariable7",
+        "offset": 1459424,
+        "size": 32768
+      },
+      "ConstantVariable95": {
+        "name": "ConstantVariable95",
+        "offset": 1492192,
+        "size": 64
+      },
+      "ConstantVariable126": {
+        "name": "ConstantVariable126",
+        "offset": 1492256,
+        "size": 128
+      },
+      "ConstantVariable10": {
+        "name": "ConstantVariable10",
+        "offset": 1492384,
+        "size": 7776
+      },
+      "ConstantVariable93": {
+        "name": "ConstantVariable93",
+        "offset": 1500160,
+        "size": 32
+      },
+      "ConstantVariable76": {
+        "name": "ConstantVariable76",
+        "offset": 1500192,
+        "size": 32
+      },
+      "ConstantVariable77": {
+        "name": "ConstantVariable77",
+        "offset": 1500224,
+        "size": 7776
+      },
+      "ConstantVariable78": {
+        "name": "ConstantVariable78",
+        "offset": 1508000,
+        "size": 32768
+      },
+      "ConstantVariable79": {
+        "name": "ConstantVariable79",
+        "offset": 1540768,
+        "size": 64
+      },
+      "ConstantVariable120": {
+        "name": "ConstantVariable120",
+        "offset": 1540832,
+        "size": 32
+      },
+      "ConstantVariable47": {
+        "name": "ConstantVariable47",
+        "offset": 1540864,
+        "size": 147456
+      },
+      "ConstantVariable80": {
+        "name": "ConstantVariable80",
+        "offset": 1688320,
+        "size": 131072
+      },
+      "ConstantVariable63": {
+        "name": "ConstantVariable63",
+        "offset": 1819392,
+        "size": 64
+      },
+      "ConstantVariable118": {
+        "name": "ConstantVariable118",
+        "offset": 1819456,
+        "size": 64
+      },
+      "ConstantVariable128": {
+        "name": "ConstantVariable128",
+        "offset": 1819520,
+        "size": 128
+      },
+      "ConstantVariable127": {
+        "name": "ConstantVariable127",
+        "offset": 1819648,
+        "size": 128
+      },
+      "ConstantVariable125": {
+        "name": "ConstantVariable125",
+        "offset": 1819776,
+        "size": 128
+      },
+      "ConstantVariable123": {
+        "name": "ConstantVariable123",
+        "offset": 1819904,
+        "size": 128
+      },
+      "ConstantVariable65": {
+        "name": "ConstantVariable65",
+        "offset": 1820032,
+        "size": 3
+      }
+    }
+  },
+  "weight_encoding": "eightbit",
+  "variable_allocation": {
+    "total_size": 7686144,
+    "allocation": {
+      "Variable64": {
+        "name": "Variable64",
+        "offset": 304128,
+        "size": 221184
+      },
+      "Variable13": {
+        "name": "Variable13",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable91": {
+        "name": "Variable91",
+        "offset": 82944,
+        "size": 1990656
+      },
+      "Variable54": {
+        "name": "Variable54",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable8": {
+        "name": "Variable8",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable99": {
+        "name": "Variable99",
+        "offset": 82944,
+        "size": 1990656
+      },
+      "Variable3": {
+        "name": "Variable3",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable95": {
+        "name": "Variable95",
+        "offset": 304128,
+        "size": 1990656
+      },
+      "Variable44": {
+        "name": "Variable44",
+        "offset": 2515968,
+        "size": 221184
+      },
+      "Variable75": {
+        "name": "Variable75",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable65": {
+        "name": "Variable65",
+        "offset": 304128,
+        "size": 221184
+      },
+      "Variable34": {
+        "name": "Variable34",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable70": {
+        "name": "Variable70",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable93": {
+        "name": "Variable93",
+        "offset": 304128,
+        "size": 1990656
+      },
+      "Variable83": {
+        "name": "Variable83",
+        "offset": 967680,
+        "size": 3538944
+      },
+      "Variable55": {
+        "name": "Variable55",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable24": {
+        "name": "Variable24",
+        "offset": 2515968,
+        "size": 221184
+      },
+      "Variable60": {
+        "name": "Variable60",
+        "offset": 2515968,
+        "size": 221184
+      },
+      "Variable76": {
+        "name": "Variable76",
+        "offset": 82944,
+        "size": 82944
+      },
+      "Variable14": {
+        "name": "Variable14",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable85": {
+        "name": "Variable85",
+        "offset": 525312,
+        "size": 1769472
+      },
+      "Variable45": {
+        "name": "Variable45",
+        "offset": 2515968,
+        "size": 221184
+      },
+      "Variable50": {
+        "name": "Variable50",
+        "offset": 2294784,
+        "size": 221184
+      },
+      "Variable71": {
+        "name": "Variable71",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable9": {
+        "name": "Variable9",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable35": {
+        "name": "Variable35",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable66": {
+        "name": "Variable66",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable40": {
+        "name": "Variable40",
+        "offset": 2294784,
+        "size": 221184
+      },
+      "Variable4": {
+        "name": "Variable4",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable109": {
+        "name": "Variable109",
+        "offset": 967680,
+        "size": 3538944
+      },
+      "Variable25": {
+        "name": "Variable25",
+        "offset": 2515968,
+        "size": 221184
+      },
+      "Variable105": {
+        "name": "Variable105",
+        "offset": 525312,
+        "size": 1990656
+      },
+      "Variable30": {
+        "name": "Variable30",
+        "offset": 2294784,
+        "size": 221184
+      },
+      "Variable111": {
+        "name": "Variable111",
+        "offset": 967680,
+        "size": 6718464
+      },
+      "Variable77": {
+        "name": "Variable77",
+        "offset": 82944,
+        "size": 82944
+      },
+      "Variable20": {
+        "name": "Variable20",
+        "offset": 2294784,
+        "size": 221184
+      },
+      "Variable72": {
+        "name": "Variable72",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable67": {
+        "name": "Variable67",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable15": {
+        "name": "Variable15",
+        "offset": 82944,
+        "size": 221184
+      },
+      "Variable107": {
+        "name": "Variable107",
+        "offset": 525312,
+        "size": 1769472
+      },
+      "Variable78": {
+        "name": "Variable78",
+        "offset": 82944,
+        "size": 82944
+      },
+      "Variable10": {
+        "name": "Variable10",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable103": {
+        "name": "Variable103",
+        "offset": 304128,
+        "size": 1990656
+      },
+      "Variable5": {
+        "name": "Variable5",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable0": {
+        "name": "Variable0",
+        "offset": 0,
+        "size": 82944
+      },
+      "Variable81": {
+        "name": "Variable81",
+        "offset": 967680,
+        "size": 6718464
+      },
+      "Variable73": {
+        "name": "Variable73",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable68": {
+        "name": "Variable68",
+        "offset": 82944,
+        "size": 442368
+      },
+      "Variable97": {
+        "name": "Variable97",
+        "offset": 304128,
+        "size": 1990656
+      },
+      "Variable87": {
+        "name": "Variable87",
+        "offset": 304128,
+        "size": 1990656
+      },
+      "Variable89": {
+        "name": "Variable89",
+        "offset": 304128,
+        "size": 1990656
+      },
+      "Variable101": {
+        "name": "Variable101",
+        "offset": 304128,
+        "size": 1990656
+      },
+      "Variable80": {
+        "name": "Variable80",
+        "offset": 82944,
+        "size": 82944
+      },
+      "Variable74": {
+        "name": "Variable74",
+        "offset": 82944,
+        "size": 884736
+      },
+      "Variable69": {
+        "name": "Variable69",
+        "offset": 82944,
+        "size": 442368
+      }
+    }
+  },
+  "inputs": [
+    "Variable0"
+  ],
+  "outputs": [
+    "Variable80"
+  ]
+}
