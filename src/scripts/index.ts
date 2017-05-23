@@ -4,7 +4,7 @@ function initialize() {
     let availability = WebDNN.getBackendAvailability();
 
     for (let backend of ['webgpu', 'webassembly', 'fallback']) {
-        for (let node of document.querySelectorAll(`.Compatibility-${backend}.Compatibility-checking`)) {
+        for (let node of Array.from(document.querySelectorAll(`.Compatibility-${backend}.Compatibility-checking`))) {
             node.classList.remove('Compatibility-checking');
             let statusNode = node.querySelector('.Compatibility-Status');
 

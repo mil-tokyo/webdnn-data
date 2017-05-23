@@ -3,12 +3,16 @@
 import "../style/neural_style_transfer.scss";
 import InitializingView from "./modules/initializing_view";
 
+const NUM_RANDOM_IMAGE = 6;
+
 enum State {
     INITIALIZING,
     STAND_BY,
     RUNNING,
     ERROR,
 }
+
+type DataSource = 'sample' | 'camera';
 
 const App = new class {
     runner: WebDNN.DescriptorRunner;
@@ -21,6 +25,9 @@ const App = new class {
     state: State = State.INITIALIZING;
     w: number;
     h: number;
+    dataSource: DataSource;
+    dataSourceSelect: HTMLSelectElement;
+    contentsContainer: HTMLDivElement;
 
     async initialize() {
         let runButton = document.getElementById('runButton') as HTMLButtonElement;
@@ -33,6 +40,15 @@ const App = new class {
             launchView.parentNode.removeChild(launchView);
             launchView = null;
         }
+
+        let dataSourceSelect = document.getElementById('dataSource') as HTMLSelectElement;
+        if (!dataSourceSelect) throw Error('#dataSource is not found');
+        this.dataSourceSelect = dataSourceSelect;
+        dataSourceSelect.addEventListener('change', () => this.onDataSourceSelectChange());
+
+        let contentsContainer = document.getElementById('contentsContainer') as HTMLDivElement;
+        if (!contentsContainer) throw Error('#contentsContainer is not found');
+        this.contentsContainer = contentsContainer;
 
         let initializingViewBase = document.getElementById('initializingView');
         if (!initializingViewBase) throw Error('#initializingView is not found');
@@ -63,24 +79,18 @@ const App = new class {
         if (!outputCtx) throw Error('Canvas initialization failed');
         this.outputCtx = outputCtx;
 
-        Webcam.set({
-            width: 192,
-            height: 144,
-            fps: 60,
-            flip_horiz: true,
-            image_format: 'png',
-            force_flash: false
-        });
         Webcam.on('error', (err) => {
             console.error(err);
             this.setMessage(err);
             this.setState(State.ERROR);
         });
-        Webcam.on('live', () => {
-            this.setState(State.STAND_BY);
-        });
-        Webcam.attach('#CameraContainer');
+
+        await this.updateDataSource();
         initializingView.remove();
+    }
+
+    onDataSourceSelectChange() {
+        this.updateDataSource();
     }
 
     onPlayButtonClick() {
@@ -98,47 +108,121 @@ const App = new class {
         }
     }
 
-    setState(state: State) {
+    async updateDataSource() {
+        if (this.dataSource) {
+            this.contentsContainer.classList.remove(`ContentsContainer-${this.dataSource}`);
+        }
+        this.dataSource = this.dataSourceSelect.value as DataSource;
+        this.contentsContainer.classList.add(`ContentsContainer-${this.dataSource}`);
+
+        switch (this.dataSource) {
+            case 'camera':
+                this.setState(State.INITIALIZING);
+                await this.initializeCamera();
+                this.setState(State.STAND_BY);
+                break;
+
+            case 'sample':
+                this.setState(State.INITIALIZING);
+                this.finalizeCamera();
+                await this.loadSampleImageToPreview();
+                this.setState(State.STAND_BY);
+                break;
+        }
+    }
+
+    initializeCamera() {
+        return new Promise(resolve => {
+            let onceCallback = () => {
+                Webcam.off('live', onceCallback);
+                resolve();
+            };
+
+            Webcam.set({
+                width: 192,
+                height: 144,
+                fps: 60,
+                flip_horiz: true,
+                image_format: 'png',
+                force_flash: false
+            });
+            Webcam.on('live', onceCallback);
+            Webcam.attach('#cameraContainer');
+        });
+    }
+
+    finalizeCamera() {
+        Webcam.reset();
+    }
+
+    async loadSampleImageToPreview() {
+        let randomImageIndex = Math.floor(Math.random() * NUM_RANDOM_IMAGE);
+
+        let url = `./assets/images/${randomImageIndex}.png`;
+        let image = new Image();
+
+        await new Promise(resolve => {
+            image.onload = () => resolve(image);
+            image.src = url;
+        });
+
+        this.inputCtx.drawImage(image, 0, 0, image.width, image.height, 0, 0, this.inputCtx.canvas.width, this.inputCtx.canvas.height);
+    }
+
+    async setState(state: State) {
+        this.state = state;
         switch (state) {
             case State.INITIALIZING:
+                this.setMessage('Initializing...');
                 this.runButton.textContent = 'Initializing...';
                 this.runButton.disabled = true;
                 break;
 
             case State.STAND_BY:
-                this.setMessage('Ready');
+                this.setMessage(`Ready(backend: ${this.runner.backend})`);
                 this.runButton.textContent = 'Run';
                 this.runButton.disabled = false;
                 break;
 
             case State.RUNNING:
-                this.setMessage('Running');
-                this.runButton.textContent = 'Stop';
-                this.runButton.disabled = false;
-                this.transfer();
+                this.setMessage('Processing...');
+                this.runButton.disabled = true;
+
+                await this.transfer();
+                if (this.dataSource == 'camera') {
+                    this.setMessage('Running');
+                    this.runButton.textContent = 'Stop';
+                    this.runButton.disabled = false;
+                } else {
+                    setTimeout(() => this.setState(State.STAND_BY));
+                }
                 break;
 
             case State.ERROR:
+                this.runButton.textContent = 'Error';
                 this.runButton.disabled = true;
                 break;
         }
-        this.state = state;
     }
 
     async transfer() {
+        if (this.state !== State.RUNNING) return;
+
         await this.getImageData();
 
         await this.runner.run();
         this.setImageData();
 
-        if (this.state == State.RUNNING) requestAnimationFrame(() => this.transfer());
+        if (this.dataSource == 'camera') requestAnimationFrame(() => this.transfer());
     }
 
     async getImageData() {
         let w = this.w;
         let h = this.h;
 
-        await new Promise(resolve => Webcam.snap(resolve, this.inputCanvas));
+        if (this.dataSource == 'camera') {
+            await new Promise(resolve => Webcam.snap(resolve, this.inputCanvas));
+        }
         let pixelData = this.inputCtx.getImageData(0, 0, w, h).data;
 
         for (let y = 0; y < h; y++) {
