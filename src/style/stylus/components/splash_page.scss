@@ -5,12 +5,11 @@ $c-SplashPage-foreground: #fcfcfc;
 
 .SplashPage {
   position: relative;
-  height: 320px;
   width: 100%;
-  padding: 32px;
+  padding: 64px 32px;
   box-sizing: border-box;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   color: $c-SplashPage-foreground;
@@ -35,5 +34,14 @@ $c-SplashPage-foreground: #fcfcfc;
 
   .MIL_LOGO {
     color: $c-key;
+  }
+
+  .Button.Primary {
+    border-color: #fff;
+    color: #fff;
+
+    &:hover:not([disabled]) {
+      background: rgba(#fff, 0.3);
+    }
   }
 }

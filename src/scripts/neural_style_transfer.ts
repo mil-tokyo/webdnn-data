@@ -46,8 +46,6 @@ const App = new class {
         this.inputView = (await this.runner.getInputViews())[0];
         this.outputView = (await this.runner.getOutputViews())[0];
 
-        initializingView.remove();
-
         let inputCanvas = document.getElementById('inputCanvas') as HTMLCanvasElement;
         if (!inputCanvas) throw Error('#inputCanvas is not found');
         this.inputCanvas = inputCanvas;
@@ -75,12 +73,14 @@ const App = new class {
         });
         Webcam.on('error', (err) => {
             console.error(err);
+            this.setMessage(err);
             this.setState(State.ERROR);
         });
         Webcam.on('live', () => {
             this.setState(State.STAND_BY);
         });
         Webcam.attach('#CameraContainer');
+        initializingView.remove();
     }
 
     onPlayButtonClick() {
@@ -106,11 +106,13 @@ const App = new class {
                 break;
 
             case State.STAND_BY:
+                this.setMessage('Ready');
                 this.runButton.textContent = 'Run';
                 this.runButton.disabled = false;
                 break;
 
             case State.RUNNING:
+                this.setMessage('Running');
                 this.runButton.textContent = 'Stop';
                 this.runButton.disabled = false;
                 this.transfer();
@@ -164,6 +166,12 @@ const App = new class {
         }
 
         this.outputCtx.putImageData(imageData, 0, 0);
+    }
+
+    setMessage(message: string) {
+        let $message = document.getElementById('message');
+        if (!$message) return;
+        $message.textContent = message;
     }
 
     async predict() {
