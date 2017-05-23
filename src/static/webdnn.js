@@ -957,7 +957,7 @@ var WebDNN;
         return 'WebGPUComputeCommandEncoder' in window;
     }
     function getBackendAvailabilityWebAssembly() {
-        return 'WebAssembly' in window;
+        return 'Worker' in window;
     }
     function getBackendAvailabilityFallback() {
         return true;

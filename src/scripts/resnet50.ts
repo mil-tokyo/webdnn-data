@@ -3,7 +3,7 @@ import "../style/resnet50.scss";
 import ImagePicker from "./modules/image_picker";
 import InitializingView from "./modules/initializing_view";
 
-const NUM_RANDOM_IMAGE = 3;
+const NUM_RANDOM_IMAGE = 6;
 
 const App = new class {
     picker: ImagePicker;
