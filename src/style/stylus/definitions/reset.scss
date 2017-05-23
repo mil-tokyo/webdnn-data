@@ -31,6 +31,16 @@ li {
 a {
   color: currentColor;
 }
+
 p {
   margin: 0;
+}
+
+hr {
+  display: block;
+  position: relative;
+  height: 1px;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid rgba(#000, 0.3);
 }
