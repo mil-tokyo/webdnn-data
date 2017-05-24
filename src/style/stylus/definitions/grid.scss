@@ -22,6 +22,7 @@
   //color: #ff9900;
   margin: 0;
 }
+
 .Cell-flex {
   @extend .Cell;
   flex: 1;
@@ -52,12 +53,14 @@
 .Flex-flex {
   flex: 1 1;
 }
+
 .Flex-column {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
 }
+
 .Flex-row {
   display: flex;
   flex-direction: row;

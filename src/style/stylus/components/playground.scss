@@ -1,4 +1,5 @@
 @import "../definitions/color";
+@import "../components/button";
 
 .PlayGround {
   display: flex;
@@ -9,4 +10,20 @@
   background: $c-key-dark;
   box-shadow: 0 3px 30px rgba(0, 0, 0, 0.3);
   margin: 0 auto;
+}
+
+.PlayGround-Link {
+  @extend .Button-primary;
+  display: none !important;
+  width: 100%;
+  margin: 0;
+}
+
+@media (max-width: 788px) {
+  .PlayGround {
+    display: none;
+  }
+  .PlayGround-Link {
+    display: block !important;
+  }
 }

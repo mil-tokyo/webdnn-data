@@ -1,5 +1,48 @@
-.Compatibility-TableWrapper {
+.TableWrapper {
+  position: relative;
+}
+
+.TableWrapper-Inner {
   overflow: auto;
+}
+
+.TableWrapper-Left,
+.TableWrapper-Right {
+  position: absolute;
+  width: 32px;
+  height: 100%;
+  top: 0;
+}
+
+.TableWrapper-Left {
+  left: 0;
+  background: rgba(0, 0, 0, 0); /* Old browsers */
+  background: -moz-linear-gradient(270deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 99.9%); /* FF3.6-15 */
+  background: -webkit-linear-gradient(270deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 99.9%); /* Chrome10-25,Safari5.1-6 */
+  background: linear-gradient(270deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 99.9%); /* Chrome10-25,Safari5.1-6 */
+}
+
+.TableWrapper-Right {
+  right: 0;
+  background: rgba(0, 0, 0, 0); /* Old browsers */
+  background: -moz-linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 99.9%); /* FF3.6-15 */
+  background: -webkit-linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 99.9%); /* Chrome10-25,Safari5.1-6 */
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 99.9%); /* Chrome10-25,Safari5.1-6 */
+}
+
+.Section-Grey {
+  .TableWrapper-Left {
+    background: rgba(0, 0, 0, 0); /* Old browsers */
+    background: -moz-linear-gradient(270deg, rgba(243, 243, 243, 0) 0%, rgba(243, 243, 243, 1) 99.9%); /* FF3.6-15 */
+    background: -webkit-linear-gradient(270deg, rgba(243, 243, 243, 0) 0%, rgba(243, 243, 243, 1) 99.9%); /* Chrome10-25,Safari5.1-6 */
+    background: linear-gradient(270deg, rgba(243, 243, 243, 0) 0%, rgba(243, 243, 243, 1) 99.9%); /* Chrome10-25,Safari5.1-6 */
+  }
+  .TableWrapper-Right {
+    background: rgba(0, 0, 0, 0); /* Old browsers */
+    background: -moz-linear-gradient(90deg, rgba(243, 243, 243, 0) 0%, rgba(243, 243, 243, 1) 99.9%); /* FF3.6-15 */
+    background: -webkit-linear-gradient(90deg, rgba(243, 243, 243, 0) 0%, rgba(243, 243, 243, 1) 99.9%); /* Chrome10-25,Safari5.1-6 */
+    background: linear-gradient(90deg, rgba(243, 243, 243, 0) 0%, rgba(243, 243, 243, 1) 99.9%); /* Chrome10-25,Safari5.1-6 */
+  }
 }
 
 .Compatibility-Table {
@@ -46,6 +89,7 @@
     text-align: center;
     padding: 8px 16px;
     border-left: 1px solid rgba(#fff, 0.3);
+    white-space: nowrap;
   }
 }
 

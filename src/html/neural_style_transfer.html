@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>mil-web-dnn</title>
+    <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1">
+    <meta name="theme-color" content="#FF6B00">
+    <title>Neural Style Transfer - MIL WebDNN</title>
     <script src="./inflate.min.js"></script>
     <script src="./webcam.js"></script>
     <script src="./webdnn.js"></script>
@@ -10,7 +12,7 @@
 <body>
 
 <div class="LaunchView" id="launchView">
-    <button id="runAppButton" class="Primary">
+    <button id="runAppButton" class="Button-primary">
         <svg height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
             <path d="M8 5v14l11-7z"/>
         </svg>
@@ -27,28 +29,29 @@
 
 <main class="Flex-flex Flex-column Flex-stretch">
 
-    <div class="Flex-row">
-        <div class="Left">
-            <div style="margin-bottom: 32px">
+    <div class="MainContainer">
+        <div class="InputContainer">
+            <div class="InputItemContainer">
                 <div class="Tip">Contents</div>
-                <div class="ContentsContainer" id="contentsContainer">
+                <div class="InputImageContainer" id="contentsContainer">
                     <div class="CameraContainer" id="cameraContainer"></div>
                     <div class="SampleContainer" id="sampleContainer">
                         <canvas id="inputCanvas" width="192" height="144"></canvas>
                     </div>
                 </div>
             </div>
-            <div>
+            <div class="InputItemContainer">
                 <div class="Tip">Style</div>
-                <img style="display: block; width: 192px; height: 144px;" src="/assets/neural_style_transfer-style.jpg">
+                <div class="InputImageContainer">
+                    <img src="/assets/neural_style_transfer-style.jpg">
+                </div>
             </div>
         </div>
 
-        <div class="Flex-flex Right">
+        <div class="OutputContainer">
             <div class="Tip">Output</div>
-            <div id="OutputCanvasContainer">
-                <canvas id="outputCanvas" width="192" height="144"
-                        style="position: relative; display: block; width: 468px; height: 351px;"></canvas>
+            <div class="OutputCanvasContainer">
+                <canvas id="outputCanvas" width="192" height="144"></canvas>
             </div>
         </div>
     </div>
@@ -65,7 +68,7 @@
             </select>
         </label>
         <span class="Flex-flex"></span>
-        <button class="Primary" id="runButton" disabled>Run</button>
+        <button class="Button-primary" id="runButton" disabled>Run</button>
     </div>
 </main>
 

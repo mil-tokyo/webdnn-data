@@ -14,13 +14,13 @@ button, .Button {
   font: 300 16px/48px sans-serif;
   height: 48px;
   box-sizing: border-box;
-  margin: 8px;
   border-radius: 2px;
   cursor: pointer;
   outline: none;
   transition: box-shadow 160ms;
   vertical-align: middle;
   text-decoration: none;
+  text-align: center;
 
   svg {
     fill: none;
@@ -28,20 +28,11 @@ button, .Button {
     margin-right: 8px;
   }
 
-  &.Primary {
-    color: $c-example-button-primary-foreground;
-    border: 1px solid $c-example-button-primary-foreground;
-
-    &:hover:not([disabled]) {
-      background: rgba(255, 153, 0, 0.1);
-    }
-  }
-
   &[disabled] {
     color: $c-example-button-disabled-foreground;
     box-shadow: none;
 
-    &.Primary {
+    &.Button-primary {
       color: $c-example-button-disabled-foreground;
       border: none;
 
@@ -58,3 +49,14 @@ button, .Button {
   &:active:not([disabled]) {
   }
 }
+
+.Button-primary {
+  @extend .Button;
+  color: $c-example-button-primary-foreground;
+  border: 1px solid $c-example-button-primary-foreground;
+
+  &:hover:not([disabled]) {
+    background: rgba(255, 153, 0, 0.1);
+  }
+}
+

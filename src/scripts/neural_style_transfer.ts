@@ -27,7 +27,8 @@ const App = new class {
     h: number;
     dataSource: DataSource;
     dataSourceSelect: HTMLSelectElement;
-    contentsContainer: HTMLDivElement;
+    cameraContainer: HTMLDivElement;
+    sampleContainer: HTMLDivElement;
 
     async initialize() {
         let runButton = document.getElementById('runButton') as HTMLButtonElement;
@@ -46,9 +47,13 @@ const App = new class {
         this.dataSourceSelect = dataSourceSelect;
         dataSourceSelect.addEventListener('change', () => this.onDataSourceSelectChange());
 
-        let contentsContainer = document.getElementById('contentsContainer') as HTMLDivElement;
-        if (!contentsContainer) throw Error('#contentsContainer is not found');
-        this.contentsContainer = contentsContainer;
+        let cameraContainer = document.getElementById('cameraContainer') as HTMLDivElement;
+        if (!cameraContainer) throw Error('#cameraContainer is not found');
+        this.cameraContainer = cameraContainer;
+
+        let sampleContainer = document.getElementById('sampleContainer') as HTMLDivElement;
+        if (!sampleContainer) throw Error('#sampleContainer is not found');
+        this.sampleContainer = sampleContainer;
 
         let initializingViewBase = document.getElementById('initializingView');
         if (!initializingViewBase) throw Error('#initializingView is not found');
@@ -109,11 +114,9 @@ const App = new class {
     }
 
     async updateDataSource() {
-        if (this.dataSource) {
-            this.contentsContainer.classList.remove(`ContentsContainer-${this.dataSource}`);
-        }
         this.dataSource = this.dataSourceSelect.value as DataSource;
-        this.contentsContainer.classList.add(`ContentsContainer-${this.dataSource}`);
+        this.sampleContainer.style.display = this.dataSource == 'sample' ? 'block' : 'none';
+        this.cameraContainer.style.display = this.dataSource == 'camera' ? 'block' : 'none';
 
         switch (this.dataSource) {
             case 'camera':
@@ -257,37 +260,26 @@ const App = new class {
         if (!$message) return;
         $message.textContent = message;
     }
-
-    async predict() {
-        // let start = performance.now();
-        // await this.runner.run();
-        // let computationTime = performance.now() - start;
-        //
-        // let output: number[] = [];
-        // for (let v of this.outputView) {
-        //     output.push(v);
-        // }
-        //
-        // let top5 = WebDNN.Math.argmax(output, 5);
-        // top5.forEach((labelId, i) => {
-        //     this.predictedLabelViews[i].textContent = this.labels[labelId];
-        // });
-    }
 };
 
 window.addEventListener('DOMContentLoaded', () => {
-    // WebDNN.registerFetchDelegate((input, init) => {
-    //     let url = (typeof input == 'string') ? input : input.url;
-    //     let ma = url.match(/resnet50\/(.+?).bin(?:\?.*)?$/);
-    //
-    //     if (ma) {
-    //         return fetch(`https://media.githubusercontent.com/media/Kiikurage/demo-data/master/resnet50/${ma[1]}.bin`);
-    //     } else {
-    //         return fetch(input, init);
-    //     }
-    // });
+    WebDNN.registerFetchDelegate((input, init) => {
+        let url = (typeof input == 'string') ? input : input.url;
+        let ma = url.match(/([^/]+?.bin)(?:\?.*)?$/);
 
-    let runAppButton = document.getElementById('runAppButton');
-    if (!runAppButton) throw Error('#runAppButton is not found');
-    runAppButton.addEventListener('click', () => App.initialize());
+        if (ma) {
+            // return fetch(`https://github.com/mil-tokyo/webdnn-hp/blob/master/src/static/models/neural_style_transfer/${ma[1]}?raw=true`);
+            return fetch(`/models/neural_style_transfer/${ma[1]}`);
+        } else {
+            return fetch(input, init);
+        }
+    });
+
+    if (location.search == '?run=1') {
+        App.initialize();
+    } else {
+        let runAppButton = document.getElementById('runAppButton');
+        if (!runAppButton) throw Error('#runAppButton is not found');
+        runAppButton.addEventListener('click', () => App.initialize());
+    }
 });

@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>mil-web-dnn</title>
+    <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1">
+    <meta name="theme-color" content="#FF6B00">
+    <title>ResNet50 Image Classification - MIL WebDNN</title>
     <script src="./inflate.min.js"></script>
     <script src="./webdnn.js"></script>
     <script src="./imagenet_labels.js"></script>
@@ -12,7 +14,7 @@
 <input type="file" id="imageInput" style="position: absolute; top: -999px;">
 
 <div class="LaunchView" id="launchView">
-    <button id="runAppButton" class="Primary">
+    <button id="runAppButton" class="Button-primary">
         <svg height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
             <path d="M8 5v14l11-7z"/>
         </svg>
@@ -131,14 +133,14 @@
             </div>
         </div>
     </div>
-    <div class="Flex-row MessageView">
+    <div class="Flex-row Flex-flex MessageView">
         <span class="Flex-flex" id="message"></span>
     </div>
-    <div class="Flex-flex Flex-row UIContainer">
+    <div class="Flex-row UIContainer">
         <label class="Button" for="imageInput">Open local image</label>
         <button id="loadRandomButton">Load random image</button>
         <span class="Flex-flex"></span>
-        <button class="Primary" id="runButton" disabled>Run</button>
+        <button class="Button-primary" id="runButton" disabled>Run</button>
     </div>
 </main>
 

@@ -208,11 +208,11 @@ const App = new class {
 
         top5.forEach((labelId, i) => {
             this.resultProbabilities[i].textContent = `${(probability[labelId] * 100).toFixed(1)}%`;
-            this.resultProbabilities[i].style.opacity = 1;
+            this.resultProbabilities[i].style.opacity = '1';
             this.resultBars[i].style.width = `${(probability[labelId] * 100)}%`;
             this.resultBars[i].style.opacity = '' + (0.3 + probability[labelId] * 0.7);
             this.resultLabels[i].textContent = this.labels[labelId];
-            this.resultLabels[i].style.opacity = 1;
+            this.resultLabels[i].style.opacity = '1';
         });
 
         this.setState(State.STAND_BY);
@@ -221,18 +221,23 @@ const App = new class {
 };
 
 window.addEventListener('DOMContentLoaded', () => {
-    // WebDNN.registerFetchDelegate((input, init) => {
-    //     let url = (typeof input == 'string') ? input : input.url;
-    //     let ma = url.match(/resnet50\/(.+?).bin(?:\?.*)?$/);
-    //
-    //     if (ma) {
-    //         return fetch(`https://media.githubusercontent.com/media/Kiikurage/demo-data/master/resnet50/${ma[1]}.bin`);
-    //     } else {
-    //         return fetch(input, init);
-    //     }
-    // });
+    WebDNN.registerFetchDelegate((input, init) => {
+        let url = (typeof input == 'string') ? input : input.url;
+        let ma = url.match(/([^/]+?.bin)(?:\?.*)?$/);
 
-    let runAppButton = document.getElementById('runAppButton');
-    if (!runAppButton) throw Error('#runAppButton is not found');
-    runAppButton.addEventListener('click', () => App.initialize());
+        if (ma) {
+            // return fetch(`https://github.com/mil-tokyo/webdnn-hp/blob/master/src/static/models/resnet50/${ma[1]}?raw=true`);
+            return fetch(`/models/resnet50/${ma[1]}`);
+        } else {
+            return fetch(input, init);
+        }
+    });
+
+    if (location.search == '?run=1') {
+        App.initialize();
+    } else {
+        let runAppButton = document.getElementById('runAppButton');
+        if (!runAppButton) throw Error('#runAppButton is not found');
+        runAppButton.addEventListener('click', () => App.initialize());
+    }
 });

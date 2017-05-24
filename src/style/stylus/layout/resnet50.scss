@@ -13,12 +13,14 @@ body {
 .UIContainer {
   background: rgb(28, 29, 35);
   align-items: center;
+  height: 80px;
 }
 
 .InputContainer,
 .ResultContainer,
 .UIContainer {
   padding: 16px;
+  box-sizing: border-box;
 }
 
 .MessageView {
