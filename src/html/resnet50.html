@@ -5,6 +5,7 @@
     <title>mil-web-dnn</title>
     <script src="./inflate.min.js"></script>
     <script src="./webdnn.js"></script>
+    <script src="./imagenet_labels.js"></script>
 </head>
 <body>
 
@@ -26,80 +27,118 @@
     </div>
 </div>
 
-<main>
-    <div class="Left">
-        <div class="Tip">Input</div>
+<main class="Flex-flex Flex-column">
+    <div class="Flex-row">
+        <div class="Flex-column InputContainer">
+            <div class="Tip">Input</div>
 
-        <div class="CanvasContainer">
-            <div class="CanvasContainer-message">
-                <span class="CanvasContainer-message-large">NO IMAGE LOADED</span>
+            <div class="CanvasContainer">
+                <div class="CanvasContainer-message">
+                    <span class="CanvasContainer-message-large">NO IMAGE LOADED</span>
+                </div>
+                <canvas id="canvas" width="224" height="224"></canvas>
             </div>
-            <canvas id="canvas" width="224" height="224"></canvas>
+            <span class="Flex-flex"></span>
         </div>
+
+        <div class="Flex-flex Flex-column">
+            <div class="Flex-flex ResultContainer">
+                <div class="Tip">Result</div>
+                <div class="Result" id="result">
+                    <div class="Result-Probability">
+                        <div class="ResultItem">
+                            <div class="ResultItem-Label">
+                            </div>
+                            <div class="ResultItem-Value">
+                                <div class="ResultItem-Bar"></div>
+                                <span class="ResultItem-Probability"></span>
+                            </div>
+                        </div>
+                        <div class="ResultItem">
+                            <div class="ResultItem-Label">
+                            </div>
+                            <div class="ResultItem-Value">
+                                <div class="ResultItem-Bar"></div>
+                                <span class="ResultItem-Probability"></span>
+                            </div>
+                        </div>
+                        <div class="ResultItem">
+                            <div class="ResultItem-Label">
+                            </div>
+                            <div class="ResultItem-Value">
+                                <div class="ResultItem-Bar"></div>
+                                <span class="ResultItem-Probability"></span>
+                            </div>
+                        </div>
+                        <div class="ResultItem">
+                            <div class="ResultItem-Label">
+                            </div>
+                            <div class="ResultItem-Value">
+                                <div class="ResultItem-Bar"></div>
+                                <span class="ResultItem-Probability"></span>
+                            </div>
+                        </div>
+                        <div class="ResultItem">
+                            <div class="ResultItem-Label">
+                            </div>
+                            <div class="ResultItem-Value">
+                                <div class="ResultItem-Bar"></div>
+                                <span class="ResultItem-Probability"></span>
+                            </div>
+                        </div>
+                        <div class="ResultItem">
+                            <div class="ResultItem-Label">
+                            </div>
+                            <div class="ResultItem-Value">
+                                <div class="ResultItem-Bar"></div>
+                                <span class="ResultItem-Probability"></span>
+                            </div>
+                        </div>
+                        <div class="ResultItem">
+                            <div class="ResultItem-Label">
+                            </div>
+                            <div class="ResultItem-Value">
+                                <div class="ResultItem-Bar"></div>
+                                <span class="ResultItem-Probability"></span>
+                            </div>
+                        </div>
+                        <div class="ResultItem">
+                            <div class="ResultItem-Label">
+                            </div>
+                            <div class="ResultItem-Value">
+                                <div class="ResultItem-Bar"></div>
+                                <span class="ResultItem-Probability"></span>
+                            </div>
+                        </div>
+                        <div class="ResultItem">
+                            <div class="ResultItem-Label">
+                            </div>
+                            <div class="ResultItem-Value">
+                                <div class="ResultItem-Bar"></div>
+                                <span class="ResultItem-Probability"></span>
+                            </div>
+                        </div>
+                        <div class="ResultItem">
+                            <div class="ResultItem-Label">
+                            </div>
+                            <div class="ResultItem-Value">
+                                <div class="ResultItem-Bar"></div>
+                                <span class="ResultItem-Probability"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="Flex-row MessageView">
+        <span class="Flex-flex" id="message"></span>
+    </div>
+    <div class="Flex-flex Flex-row UIContainer">
         <label class="Button" for="imageInput">Open local image</label>
         <button id="loadRandomButton">Load random image</button>
-        <span class="Spacer"></span>
+        <span class="Flex-flex"></span>
         <button class="Primary" id="runButton" disabled>Run</button>
-    </div>
-
-    <div class="Right">
-        <div class="Tip">Result</div>
-
-        <p id="firstMessage">Select an image, and click "Run" button.</p>
-
-        <div class="Result" id="result" style="display: none;">
-            <div class="Result-Probability">
-                <div class="ResultItem">
-                    <div class="ResultItem-Label">
-                        <span id="predictedLabel0"></span>
-                    </div>
-                    <div class="ResultItem-Value">
-                        <div class="ResultItem-Bar" style="width: 42%;"></div>
-                        <span><strong>42</strong>%</span>
-                    </div>
-                </div>
-                <div class="ResultItem">
-                    <div class="ResultItem-Label">
-                        <span id="predictedLabel1"></span>
-                    </div>
-                    <div class="ResultItem-Value">
-                        <div class="ResultItem-Bar" style="width: 29%;"></div>
-                        <span><strong>29</strong>%</span>
-                    </div>
-                </div>
-                <div class="ResultItem">
-                    <div class="ResultItem-Label">
-                        <span id="predictedLabel2"></span>
-                    </div>
-                    <div class="ResultItem-Value">
-                        <div class="ResultItem-Bar" style="width: 24%;"></div>
-                        <span><strong>24</strong>%</span>
-                    </div>
-                </div>
-                <div class="ResultItem">
-                    <div class="ResultItem-Label">
-                        <span id="predictedLabel3"></span>
-                    </div>
-                    <div class="ResultItem-Value">
-                        <div class="ResultItem-Bar" style="width: 1%;"></div>
-                        <span><strong>1</strong>%</span>
-                    </div>
-                </div>
-                <div class="ResultItem">
-                    <div class="ResultItem-Label">
-                        <span id="predictedLabel4"></span>
-                    </div>
-                    <div class="ResultItem-Value">
-                        <div class="ResultItem-Bar" style="width: 1%;"></div>
-                        <span><strong>1</strong>%</span>
-                    </div>
-                </div>
-            </div>
-            <p class="Result-ComputationTime">
-                <span>Computation Time:<strong id="computationTime"></strong>ms</span>
-            </p>
-        </div>
-
     </div>
 </main>
 
