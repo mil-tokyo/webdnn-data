@@ -5,6 +5,29 @@ import InitializingView from "./modules/initializing_view";
 
 const NUM_RANDOM_IMAGE = 6;
 
+enum State {
+    INITIALIZING,
+    STAND_BY,
+    RUNNING,
+    ERROR
+}
+
+function softMax(arr: number[]) {
+    let exps: number[] = [];
+    let sum = 0;
+
+    for (let i = 0; i < arr.length; i++) {
+        let e = Math.exp(arr[i]);
+        sum += e;
+        exps[i] = e;
+    }
+    for (let i = 0; i < arr.length; i++) {
+        exps[i] /= sum;
+    }
+
+    return exps;
+}
+
 const App = new class {
     picker: ImagePicker;
     context: CanvasRenderingContext2D;
@@ -12,14 +35,17 @@ const App = new class {
     inputView: Float32Array;
     outputView: Float32Array;
     runButton: HTMLButtonElement;
-    firstMessageView: HTMLElement;
-    resultView: HTMLElement;
-    computationTimeView: HTMLElement;
-    predictedLabelViews: HTMLElement[];
+    resultLabels: HTMLElement[];
+    resultBars: HTMLElement[];
+    resultProbabilities: HTMLElement[];
     labels: string[];
     randomImageIndex: number;
+    state: State;
+    flagImageLoaded: boolean = false;
+    messageView: HTMLElement;
 
     async initialize() {
+        this.setState(State.INITIALIZING);
         this.randomImageIndex = Math.floor(Math.random() * NUM_RANDOM_IMAGE);
 
         let canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -31,7 +57,8 @@ const App = new class {
             document.getElementById('imageInput') as HTMLInputElement, context
         );
         this.picker.onload = () => {
-            this.runButton.disabled = false;
+            this.flagImageLoaded = true;
+            this.setState(State.STAND_BY);
         };
 
         let runButton = document.getElementById('runButton') as HTMLButtonElement;
@@ -43,23 +70,29 @@ const App = new class {
         if (!loadRandomButton) throw Error('#loadRandomButton is not found.');
         loadRandomButton.addEventListener('click', () => App.loadRandomImage());
 
-        let firstMessageView = document.getElementById('firstMessage');
-        if (!firstMessageView) throw Error('#firstMessageView is not found.');
-        this.firstMessageView = firstMessageView;
+        let messageView = document.getElementById('message');
+        if (!messageView) throw Error('#message is not found.');
+        this.messageView = messageView;
 
-        let resultView = document.getElementById('result');
-        if (!resultView) throw Error('#result is not found.');
-        this.resultView = resultView;
+        this.resultLabels = [];
+        this.resultBars = [];
+        this.resultProbabilities = [];
+        let predictedItems = document.querySelectorAll('.ResultItem');
+        if (predictedItems.length != 10) throw Error('# of .ResultItem must be 10.');
+        for (let i = 0; i < 10; i++) {
+            let item = predictedItems[i];
 
-        let computationTimeView = document.getElementById('computationTime');
-        if (!computationTimeView) throw Error('#computationTime is not found.');
-        this.computationTimeView = computationTimeView;
+            let resultLabel = item.querySelector('.ResultItem-Label') as HTMLElement;
+            if (!resultLabel) throw Error('.ResultItem-Label is not found.');
+            this.resultLabels.push(resultLabel);
 
-        this.predictedLabelViews = [];
-        for (let i = 0; i < 5; i++) {
-            let predictedLabelView = document.getElementById(`predictedLabel${i}`);
-            if (!predictedLabelView) throw Error(`#predictedLabelView${i} is not found.`);
-            this.predictedLabelViews.push(predictedLabelView);
+            let resultBar = item.querySelector('.ResultItem-Bar') as HTMLElement;
+            if (!resultBar) throw Error('.ResultItem-Bar is not found.');
+            this.resultBars.push(resultBar);
+
+            let resultProbability = item.querySelector('.ResultItem-Probability') as HTMLElement;
+            if (!resultProbability) throw Error('.ResultItem-Probability is not found.');
+            this.resultProbabilities.push(resultProbability);
         }
 
         let launchView = document.getElementById('launchView');
@@ -73,13 +106,9 @@ const App = new class {
         let initializingView = new InitializingView(initializingViewBase);
         initializingView.updateMessage('Load label data');
 
-        let labelData = await((await fetch(`./assets/synset_words.txt`)).text());
-        this.labels = labelData.split('\n')
-            .map(line => line.split(',')[0])
-            .map(label => label.replace(/^n\d+\w+/g, '').toLowerCase());
+        this.labels = window['labels'];
 
         initializingView.updateMessage('Load model data');
-
         await WebDNN.init();
         this.runner = WebDNN.gpu.createDescriptorRunner();
         await this.runner.load('./models/resnet50', (loaded, total) => initializingView.updateProgress(loaded / total));
@@ -87,6 +116,50 @@ const App = new class {
         this.outputView = (await this.runner.getOutputViews())[0];
 
         initializingView.remove();
+        this.setState(State.STAND_BY);
+    }
+
+    setMessage(message: string) {
+        if (this.messageView) {
+            this.messageView.textContent = message;
+        }
+    }
+
+    setState(state: State) {
+        this.state = state;
+        switch (state) {
+            case State.INITIALIZING:
+                this.setMessage('Initializing...');
+                if (this.runButton) {
+                    this.runButton.textContent = 'Initializing...';
+                    this.runButton.disabled = true;
+                }
+                break;
+
+            case State.STAND_BY:
+                this.setMessage('Select an image, and click "Run" button.');
+                if (this.runButton && this.flagImageLoaded) {
+                    this.runButton.textContent = 'Run';
+                    this.runButton.disabled = false;
+                }
+                break;
+
+            case State.RUNNING:
+                this.setMessage('Running...');
+                if (this.runButton) {
+                    this.runButton.textContent = 'Running...';
+                    this.runButton.disabled = true;
+                }
+                break;
+
+            case State.ERROR:
+                this.setMessage('Error');
+                if (this.runButton) {
+                    this.runButton.textContent = 'Error';
+                    this.runButton.disabled = true;
+                }
+                break;
+        }
     }
 
     setInputImageData() {
@@ -110,6 +183,7 @@ const App = new class {
     }
 
     async predict() {
+        this.setState(State.RUNNING);
         this.setInputImageData();
 
         let start = performance.now();
@@ -121,14 +195,20 @@ const App = new class {
             output.push(v);
         }
 
-        let top5 = WebDNN.Math.argmax(output, 5);
+        let probability = softMax(output);
+        let top5 = WebDNN.Math.argmax(probability.slice(0), 10);
+
         top5.forEach((labelId, i) => {
-            this.predictedLabelViews[i].textContent = this.labels[labelId];
+            this.resultProbabilities[i].textContent = `${(probability[labelId] * 100).toFixed(1)}%`;
+            this.resultProbabilities[i].style.opacity = 1;
+            this.resultBars[i].style.width = `${(probability[labelId] * 100)}%`;
+            this.resultBars[i].style.opacity = '' + (0.3 + probability[labelId] * 0.7);
+            this.resultLabels[i].textContent = this.labels[labelId];
+            this.resultLabels[i].style.opacity = 1;
         });
 
-        this.firstMessageView.style.display = 'none';
-        this.resultView.style.display = '';
-        this.computationTimeView.textContent = computationTime.toFixed(2);
+        this.setState(State.STAND_BY);
+        this.setMessage(`Computation Time: ${computationTime.toFixed(2)} [ms]`);
     }
 };
 

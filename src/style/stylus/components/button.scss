@@ -7,7 +7,7 @@ button, .Button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1px solid rgba(#fff, 0.3);
   background: none;
   color: $c-example-button-foreground;
   padding: 0 16px;
