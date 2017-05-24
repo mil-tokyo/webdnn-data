@@ -7,6 +7,7 @@ const NUM_RANDOM_IMAGE = 6;
 
 enum State {
     INITIALIZING,
+    NO_IMAGE,
     STAND_BY,
     RUNNING,
     ERROR
@@ -41,7 +42,6 @@ const App = new class {
     labels: string[];
     randomImageIndex: number;
     state: State;
-    flagImageLoaded: boolean = false;
     messageView: HTMLElement;
 
     async initialize() {
@@ -57,7 +57,6 @@ const App = new class {
             document.getElementById('imageInput') as HTMLInputElement, context
         );
         this.picker.onload = () => {
-            this.flagImageLoaded = true;
             this.setState(State.STAND_BY);
         };
 
@@ -116,7 +115,8 @@ const App = new class {
         this.outputView = (await this.runner.getOutputViews())[0];
 
         initializingView.remove();
-        this.setState(State.STAND_BY);
+        this.setState(State.NO_IMAGE);
+        this.loadRandomImage();
     }
 
     setMessage(message: string) {
@@ -136,9 +136,17 @@ const App = new class {
                 }
                 break;
 
-            case State.STAND_BY:
+            case State.NO_IMAGE:
                 this.setMessage('Select an image, and click "Run" button.');
-                if (this.runButton && this.flagImageLoaded) {
+                if (this.runButton) {
+                    this.runButton.textContent = 'Run';
+                    this.runButton.disabled = true;
+                }
+                break;
+
+            case State.STAND_BY:
+                this.setMessage(`Ready(backend: ${this.runner.backend})`);
+                if (this.runButton) {
                     this.runButton.textContent = 'Run';
                     this.runButton.disabled = false;
                 }
