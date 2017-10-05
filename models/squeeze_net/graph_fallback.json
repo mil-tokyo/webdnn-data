@@ -1,0 +1,3451 @@
+{
+  "kernel_source": "\ndnn_fallback_kernel={\n\n\nconvolution_2d: function(input_arrays, output_arrays, option) {\nvar x = input_arrays[0];\nvar w = input_arrays[1];\nvar y = output_arrays[0];\nvar n = option.n | 0;\nvar in_spatial = option.in_spatial;\nvar out_spatial = option.out_spatial;\nvar out_size = option.out_size | 0;\nvar in_size = option.in_size | 0;\nvar padding = option.padding;\nvar stride = option.stride;\nvar ksize = option.ksize;\nvar dilation_rate = option.dilation_rate;\nvar strides_x = option.strides_x;\nvar strides_w = option.strides_w;\nvar strides_y = option.strides_y;\n\nvar get_x = function(n_, y_, x_, c_) {\n  y_ -= padding[0];\n  x_ -= padding[1];\n  if (y_ < 0 || y_ >= in_spatial[0] || x_ < 0 || x_ >= in_spatial[1]) {\n    return 0.0;\n  }\n  var idx = n_ * strides_x[0] + y_ * strides_x[1] + x_ * strides_x[2] + c_ * strides_x[3];\n  return x[idx];\n};\n\nvar get_w = function(ky_, kx_, in_c, out_c) {\n  var idx = out_c * strides_w[0] + ky_ * strides_w[1] + kx_ * strides_w[2] + in_c * strides_w[3];\n  return w[idx];\n};\n\nvar set_y = function(n_, y_, x_, c_, val) {\n  var idx = n_ * strides_y[0] + y_ * strides_y[1] + x_ * strides_y[2] + c_ * strides_y[3];\n  y[idx] = val;\n};\n\nfor (var batch = 0; batch < n; batch++) {\n  for (var oy = 0; oy < out_spatial[0]; oy++) {\n    for (var ox = 0; ox < out_spatial[1]; ox++) {\n      for (var oc = 0; oc < out_size; oc++) {\n        var sum = 0.0;\n        for (var ky = 0; ky < ksize[0]; ky++) {\n          for (var kx = 0; kx < ksize[1]; kx++) {\n            for (var ic = 0; ic < in_size; ic++) {\n              sum += get_x(batch, oy * stride[0] + ky * dilation_rate[0],\n                           ox * stride[1] + kx * dilation_rate[1],\n                           ic) *\n                     get_w(ky, kx, ic, oc);\n            }\n          }\n        }\n        set_y(batch, oy, ox, oc, sum);\n      }\n    }\n  }\n}\n\n},\n\n\n\nelementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657: function(input_arrays, output_arrays, option) {\n    var v1 = input_arrays[0];\n    var v2 = input_arrays[1];\n    var v3 = input_arrays[2];\n    var v4 = option['7'];\n    var v5 = option['9'];\n    var D0 = option['11'];\n    var D1 = option['13'];\n    var d0;\n    for (d0 = ((1 > 8) ? (0 % (1 / 8)) : 0); d0 < D0; d0 += ((1 > 8) ? (1 / 8) : 1)) {\n        var v6 = v1[d0];\n        var d1;\n        for (d1 = ((1 > 8) ? (0 / (1 / 8)) : 0); d1 < D1; d1 += ((1 > 8) ? 8 : 1)) {\n            var v7 = v2[d0 + d1*v4];\n            var v8;\n            (function(){\n                v8 = v7 + v6;\n            })();\n            v3[d0 + d1*v5] = v8;\n        }\n    }\n},\n\nrelu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1: function(input_arrays, output_arrays, option) {\n    var v1 = input_arrays[0];\n    var v2 = input_arrays[1];\n    var D0 = option['5'];\n    var d0;\n    for (d0 = 0; d0 < D0; d0 += 1) {\n        var v3 = v1[d0];\n        var v4;\n        (function(){\n            v4 = v3 > 0 ? v3 : 0;\n        })();\n        v2[d0] = v4;\n    }\n},\n\nmax_pooling_2d: function(input_arrays, output_arrays, option) {\nvar x = input_arrays[0];\nvar y = output_arrays[0];\nvar n = option.n | 0;\nvar in_spatial = option.in_spatial;\nvar out_spatial = option.out_spatial;\nvar out_size = option.out_size | 0;\nvar in_size = option.in_size | 0;\nvar padding = option.padding;\nvar stride = option.stride;\nvar ksize = option.ksize;\nvar strides_x = option.strides_x;\nvar strides_y = option.strides_y;\n\nvar get_x = function(n_, y_, x_, c_) {\n  y_ -= padding[0];\n  x_ -= padding[1];\n  if (y_ < 0 || y_ >= in_spatial[0] || x_ < 0 || x_ >= in_spatial[1]) {\n    return -Infinity;\n  }\n  var idx = n_ * strides_x[0] + y_ * strides_x[1] + x_ * strides_x[2] + c_ * strides_x[3];\n  return x[idx];\n};\n\nvar set_y = function(n_, y_, x_, c_, val) {\n  var idx = n_ * strides_y[0] + y_ * strides_y[1] + x_ * strides_y[2] + c_ * strides_y[3];\n  y[idx] = val;\n};\n\nfor (var batch = 0; batch < n; batch++) {\n  for (var oy = 0; oy < out_spatial[0]; oy++) {\n    for (var ox = 0; ox < out_spatial[1]; ox++) {\n      for (var oc = 0; oc < out_size; oc++) {\n        var window_max = -Infinity;\n        for (var ky = 0; ky < ksize[0]; ky++) {\n          for (var kx = 0; kx < ksize[1]; kx++) {\n            var val = get_x(batch, oy * stride[0] + ky, ox * stride[1] + kx, oc);\n            if (val > window_max) {\n              window_max = val;\n            }\n          }\n        }\n        set_y(batch, oy, ox, oc, window_max);\n      }\n    }\n  }\n}\n\n},\n\n\n\nconcat: function(input_arrays, output_arrays, option) {\nvar xs = input_arrays;\nvar y = output_arrays[0];\nvar shapes = option.x_shapes;\nvar strides = option.x_strides;\nvar offsets = option.x_offsets;\nvar x;\nvar offset;\nvar stride;\nvar shape;\nvar position;\n\nfor (var i = 0; i < xs.length; i++) {\n    x = xs[i];\n    offset = offsets[i];\n    stride = strides[i];\n    shape = shapes[i];\n    position = [];\n    \n    for (var j = 0; j < shape.length; j++) {\n        position[j] = 0;\n    }\n    \n    do {\n        y[offset + dot(stride, position)] = get(x, shape, position);\n    } while (increment(shape, position))\n}\n\nfunction dot(a, b) {\n    var sum = 0;\n    for (var i = 0; i < a.length; i++) {\n        sum += a[i] * b[i];\n    }\n    return sum;\n}\n\nfunction get(x, shape, position) {\n    var i = 0;\n    for (var j = 0; j < shape.length; j++) {\n        i = (i * shape[j]) + position[j];\n    }\n    return x[i];\n}\n\nfunction increment(shape, position) {\n    var d = shape.length - 1;\n    position[d]++;\n    \n    while (position[d] === shape[d]) {\n        if (d == 0) return false;\n\n        position[d] -= shape[d];\n        d--;\n        position[d]++;\n    }\n    \n    return true;\n}\n\n},\n\n\naverage_pooling_2d: function(input_arrays, output_arrays, option) {\nvar x = input_arrays[0];\nvar y = output_arrays[0];\nvar n = option.n | 0;\nvar in_spatial = option.in_spatial;\nvar out_spatial = option.out_spatial;\nvar out_size = option.out_size | 0;\nvar padding = option.padding;\nvar stride = option.stride;\nvar ksize = option.ksize;\nvar strides_x = option.strides_x;\nvar strides_y = option.strides_y;\nvar window_area_inv = 1.0 / (ksize[0] * ksize[1]);\n\nvar get_x = function(n_, y_, x_, c_) {\n  y_ -= padding[0];\n  x_ -= padding[1];\n  if (y_ < 0 || y_ >= in_spatial[0] || x_ < 0 || x_ >= in_spatial[1]) {\n    return 0.0;\n  }\n  var idx = n_ * strides_x[0] + y_ * strides_x[1] + x_ * strides_x[2] + c_ * strides_x[3];\n  return x[idx];\n};\n\nvar set_y = function(n_, y_, x_, c_, val) {\n  var idx = n_ * strides_y[0] + y_ * strides_y[1] + x_ * strides_y[2] + c_ * strides_y[3];\n  y[idx] = val;\n};\n\nfor (var batch = 0; batch < n; batch++) {\n  for (var oy = 0; oy < out_spatial[0]; oy++) {\n    for (var ox = 0; ox < out_spatial[1]; ox++) {\n      for (var oc = 0; oc < out_size; oc++) {\n        var sum = 0.0;\n        for (var ky = 0; ky < ksize[0]; ky++) {\n          for (var kx = 0; kx < ksize[1]; kx++) {\n            sum += get_x(batch, oy * stride[0] + ky, ox * stride[1] + kx, oc);\n          }\n        }\n        set_y(batch, oy, ox, oc, sum * window_area_inv);\n      }\n    }\n  }\n}\n\n},\n\n\n\nreshape: function(input_arrays, output_arrays, option) {\nvar x = input_arrays[0];\nvar y = output_arrays[0];\nvar length = option.length | 0;\n\nfor (var i = 0; i < length; i++) {\n  y[i] = x[i];\n}\n\n},\n\n\n\nsoftmax: function(input_arrays, output_arrays, option) {\nvar x = input_arrays[0];\nvar y = output_arrays[0];\nvar N = option.N | 0;\nvar C = option.C | 0;\n\nfor (var n = 0; n < N; n++) {\n    var set_max = x[n * C];\n    for (var c = 0; c < C; c++) {\n        var val = x[n * C + c];\n        if (val > set_max) {\n            set_max = val;\n        }\n    }\n\n    var sum_exp = 0.0;\n    for (var c = 0; c < C; c++) {\n        var val = x[n * C + c];\n        var exp_x = Math.exp(val - set_max);\n        sum_exp += exp_x;\n        y[n * C + c] = exp_x;\n    }\n\n    for (var c = 0; c < C; c++) {\n        y[n * C + c] /= sum_exp;\n    }\n}\n},\n\n\n\n};\n",
+  "exec_infos": [
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a349",
+        "a297"
+      ],
+      "outputs": [
+        "a351"
+      ],
+      "call_option": {
+        "in_spatial": [
+          224,
+          224
+        ],
+        "n": 1,
+        "out_size": 64,
+        "in_size": 3,
+        "out_spatial": [
+          112,
+          112
+        ],
+        "strides_x": [
+          150528,
+          672,
+          3,
+          1
+        ],
+        "strides_w": [
+          1,
+          576,
+          192,
+          64
+        ],
+        "strides_y": [
+          802816,
+          7168,
+          64,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          2,
+          2
+        ],
+        "ksize": [
+          3,
+          3
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a298",
+        "a351",
+        "a352"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 64,
+        "9": 64,
+        "11": 64,
+        "13": 12544
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a352",
+        "a353"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 802816
+      }
+    },
+    {
+      "entry_func_name": "max_pooling_2d",
+      "inputs": [
+        "a353"
+      ],
+      "outputs": [
+        "a354"
+      ],
+      "call_option": {
+        "in_spatial": [
+          112,
+          112
+        ],
+        "n": 1,
+        "out_size": 64,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          802816,
+          7168,
+          64,
+          1
+        ],
+        "strides_y": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          2,
+          2
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a354",
+        "a299"
+      ],
+      "outputs": [
+        "a355"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 16,
+        "in_size": 64,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "strides_w": [
+          1,
+          1024,
+          1024,
+          16
+        ],
+        "strides_y": [
+          50176,
+          896,
+          16,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a300",
+        "a355",
+        "a356"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 16,
+        "9": 16,
+        "11": 16,
+        "13": 3136
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a356",
+        "a357"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a357",
+        "a301"
+      ],
+      "outputs": [
+        "a358"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 64,
+        "in_size": 16,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          50176,
+          896,
+          16,
+          1
+        ],
+        "strides_w": [
+          1,
+          1024,
+          1024,
+          64
+        ],
+        "strides_y": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a302",
+        "a358",
+        "a359"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 64,
+        "9": 64,
+        "11": 64,
+        "13": 3136
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a359",
+        "a360"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 200704
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a357",
+        "a303"
+      ],
+      "outputs": [
+        "a361"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 64,
+        "in_size": 16,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          50176,
+          896,
+          16,
+          1
+        ],
+        "strides_w": [
+          1,
+          3072,
+          1024,
+          64
+        ],
+        "strides_y": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a304",
+        "a361",
+        "a362"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 64,
+        "9": 64,
+        "11": 64,
+        "13": 3136
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a362",
+        "a363"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 200704
+      }
+    },
+    {
+      "entry_func_name": "concat",
+      "inputs": [
+        "a360",
+        "a363"
+      ],
+      "outputs": [
+        "a364"
+      ],
+      "call_option": {
+        "x_shapes": [
+          [
+            1,
+            56,
+            56,
+            64
+          ],
+          [
+            1,
+            56,
+            56,
+            64
+          ]
+        ],
+        "x_strides": [
+          [
+            401408,
+            7168,
+            128,
+            1
+          ],
+          [
+            401408,
+            7168,
+            128,
+            1
+          ]
+        ],
+        "x_offsets": [
+          0,
+          64
+        ]
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a364",
+        "a305"
+      ],
+      "outputs": [
+        "a365"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 16,
+        "in_size": 128,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          401408,
+          7168,
+          128,
+          1
+        ],
+        "strides_w": [
+          1,
+          2048,
+          2048,
+          16
+        ],
+        "strides_y": [
+          50176,
+          896,
+          16,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a306",
+        "a365",
+        "a366"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 16,
+        "9": 16,
+        "11": 16,
+        "13": 3136
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a366",
+        "a367"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a367",
+        "a307"
+      ],
+      "outputs": [
+        "a368"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 64,
+        "in_size": 16,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          50176,
+          896,
+          16,
+          1
+        ],
+        "strides_w": [
+          1,
+          1024,
+          1024,
+          64
+        ],
+        "strides_y": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a308",
+        "a368",
+        "a369"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 64,
+        "9": 64,
+        "11": 64,
+        "13": 3136
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a369",
+        "a370"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 200704
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a367",
+        "a309"
+      ],
+      "outputs": [
+        "a371"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 64,
+        "in_size": 16,
+        "out_spatial": [
+          56,
+          56
+        ],
+        "strides_x": [
+          50176,
+          896,
+          16,
+          1
+        ],
+        "strides_w": [
+          1,
+          3072,
+          1024,
+          64
+        ],
+        "strides_y": [
+          200704,
+          3584,
+          64,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a310",
+        "a371",
+        "a372"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 64,
+        "9": 64,
+        "11": 64,
+        "13": 3136
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a372",
+        "a373"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 200704
+      }
+    },
+    {
+      "entry_func_name": "concat",
+      "inputs": [
+        "a370",
+        "a373"
+      ],
+      "outputs": [
+        "a374"
+      ],
+      "call_option": {
+        "x_shapes": [
+          [
+            1,
+            56,
+            56,
+            64
+          ],
+          [
+            1,
+            56,
+            56,
+            64
+          ]
+        ],
+        "x_strides": [
+          [
+            401408,
+            7168,
+            128,
+            1
+          ],
+          [
+            401408,
+            7168,
+            128,
+            1
+          ]
+        ],
+        "x_offsets": [
+          0,
+          64
+        ]
+      }
+    },
+    {
+      "entry_func_name": "max_pooling_2d",
+      "inputs": [
+        "a374"
+      ],
+      "outputs": [
+        "a375"
+      ],
+      "call_option": {
+        "in_spatial": [
+          56,
+          56
+        ],
+        "n": 1,
+        "out_size": 128,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          401408,
+          7168,
+          128,
+          1
+        ],
+        "strides_y": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          2,
+          2
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a375",
+        "a311"
+      ],
+      "outputs": [
+        "a376"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 32,
+        "in_size": 128,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "strides_w": [
+          1,
+          4096,
+          4096,
+          32
+        ],
+        "strides_y": [
+          25088,
+          896,
+          32,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a312",
+        "a376",
+        "a377"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 32,
+        "9": 32,
+        "11": 32,
+        "13": 784
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a377",
+        "a378"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 25088
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a378",
+        "a313"
+      ],
+      "outputs": [
+        "a379"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 128,
+        "in_size": 32,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          25088,
+          896,
+          32,
+          1
+        ],
+        "strides_w": [
+          1,
+          4096,
+          4096,
+          128
+        ],
+        "strides_y": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a314",
+        "a379",
+        "a380"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 128,
+        "9": 128,
+        "11": 128,
+        "13": 784
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a380",
+        "a381"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 100352
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a378",
+        "a315"
+      ],
+      "outputs": [
+        "a382"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 128,
+        "in_size": 32,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          25088,
+          896,
+          32,
+          1
+        ],
+        "strides_w": [
+          1,
+          12288,
+          4096,
+          128
+        ],
+        "strides_y": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a316",
+        "a382",
+        "a383"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 128,
+        "9": 128,
+        "11": 128,
+        "13": 784
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a383",
+        "a384"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 100352
+      }
+    },
+    {
+      "entry_func_name": "concat",
+      "inputs": [
+        "a381",
+        "a384"
+      ],
+      "outputs": [
+        "a385"
+      ],
+      "call_option": {
+        "x_shapes": [
+          [
+            1,
+            28,
+            28,
+            128
+          ],
+          [
+            1,
+            28,
+            28,
+            128
+          ]
+        ],
+        "x_strides": [
+          [
+            200704,
+            7168,
+            256,
+            1
+          ],
+          [
+            200704,
+            7168,
+            256,
+            1
+          ]
+        ],
+        "x_offsets": [
+          0,
+          128
+        ]
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a385",
+        "a317"
+      ],
+      "outputs": [
+        "a386"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 32,
+        "in_size": 256,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          200704,
+          7168,
+          256,
+          1
+        ],
+        "strides_w": [
+          1,
+          8192,
+          8192,
+          32
+        ],
+        "strides_y": [
+          25088,
+          896,
+          32,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a318",
+        "a386",
+        "a387"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 32,
+        "9": 32,
+        "11": 32,
+        "13": 784
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a387",
+        "a388"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 25088
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a388",
+        "a319"
+      ],
+      "outputs": [
+        "a389"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 128,
+        "in_size": 32,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          25088,
+          896,
+          32,
+          1
+        ],
+        "strides_w": [
+          1,
+          4096,
+          4096,
+          128
+        ],
+        "strides_y": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a320",
+        "a389",
+        "a390"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 128,
+        "9": 128,
+        "11": 128,
+        "13": 784
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a390",
+        "a391"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 100352
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a388",
+        "a321"
+      ],
+      "outputs": [
+        "a392"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 128,
+        "in_size": 32,
+        "out_spatial": [
+          28,
+          28
+        ],
+        "strides_x": [
+          25088,
+          896,
+          32,
+          1
+        ],
+        "strides_w": [
+          1,
+          12288,
+          4096,
+          128
+        ],
+        "strides_y": [
+          100352,
+          3584,
+          128,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a322",
+        "a392",
+        "a393"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 128,
+        "9": 128,
+        "11": 128,
+        "13": 784
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a393",
+        "a394"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 100352
+      }
+    },
+    {
+      "entry_func_name": "concat",
+      "inputs": [
+        "a391",
+        "a394"
+      ],
+      "outputs": [
+        "a395"
+      ],
+      "call_option": {
+        "x_shapes": [
+          [
+            1,
+            28,
+            28,
+            128
+          ],
+          [
+            1,
+            28,
+            28,
+            128
+          ]
+        ],
+        "x_strides": [
+          [
+            200704,
+            7168,
+            256,
+            1
+          ],
+          [
+            200704,
+            7168,
+            256,
+            1
+          ]
+        ],
+        "x_offsets": [
+          0,
+          128
+        ]
+      }
+    },
+    {
+      "entry_func_name": "max_pooling_2d",
+      "inputs": [
+        "a395"
+      ],
+      "outputs": [
+        "a396"
+      ],
+      "call_option": {
+        "in_spatial": [
+          28,
+          28
+        ],
+        "n": 1,
+        "out_size": 256,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          200704,
+          7168,
+          256,
+          1
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          2,
+          2
+        ],
+        "ksize": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a396",
+        "a323"
+      ],
+      "outputs": [
+        "a397"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 48,
+        "in_size": 256,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "strides_w": [
+          1,
+          12288,
+          12288,
+          48
+        ],
+        "strides_y": [
+          9408,
+          672,
+          48,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a324",
+        "a397",
+        "a398"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 48,
+        "9": 48,
+        "11": 48,
+        "13": 196
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a398",
+        "a399"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 9408
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a399",
+        "a325"
+      ],
+      "outputs": [
+        "a400"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 192,
+        "in_size": 48,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          9408,
+          672,
+          48,
+          1
+        ],
+        "strides_w": [
+          1,
+          9216,
+          9216,
+          192
+        ],
+        "strides_y": [
+          37632,
+          2688,
+          192,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a326",
+        "a400",
+        "a401"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 192,
+        "9": 192,
+        "11": 192,
+        "13": 196
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a401",
+        "a402"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 37632
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a399",
+        "a327"
+      ],
+      "outputs": [
+        "a403"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 192,
+        "in_size": 48,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          9408,
+          672,
+          48,
+          1
+        ],
+        "strides_w": [
+          1,
+          27648,
+          9216,
+          192
+        ],
+        "strides_y": [
+          37632,
+          2688,
+          192,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a328",
+        "a403",
+        "a404"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 192,
+        "9": 192,
+        "11": 192,
+        "13": 196
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a404",
+        "a405"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 37632
+      }
+    },
+    {
+      "entry_func_name": "concat",
+      "inputs": [
+        "a402",
+        "a405"
+      ],
+      "outputs": [
+        "a406"
+      ],
+      "call_option": {
+        "x_shapes": [
+          [
+            1,
+            14,
+            14,
+            192
+          ],
+          [
+            1,
+            14,
+            14,
+            192
+          ]
+        ],
+        "x_strides": [
+          [
+            75264,
+            5376,
+            384,
+            1
+          ],
+          [
+            75264,
+            5376,
+            384,
+            1
+          ]
+        ],
+        "x_offsets": [
+          0,
+          192
+        ]
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a406",
+        "a329"
+      ],
+      "outputs": [
+        "a407"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 48,
+        "in_size": 384,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          75264,
+          5376,
+          384,
+          1
+        ],
+        "strides_w": [
+          1,
+          18432,
+          18432,
+          48
+        ],
+        "strides_y": [
+          9408,
+          672,
+          48,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a330",
+        "a407",
+        "a408"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 48,
+        "9": 48,
+        "11": 48,
+        "13": 196
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a408",
+        "a409"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 9408
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a409",
+        "a331"
+      ],
+      "outputs": [
+        "a410"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 192,
+        "in_size": 48,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          9408,
+          672,
+          48,
+          1
+        ],
+        "strides_w": [
+          1,
+          9216,
+          9216,
+          192
+        ],
+        "strides_y": [
+          37632,
+          2688,
+          192,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a332",
+        "a410",
+        "a411"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 192,
+        "9": 192,
+        "11": 192,
+        "13": 196
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a411",
+        "a412"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 37632
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a409",
+        "a333"
+      ],
+      "outputs": [
+        "a413"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 192,
+        "in_size": 48,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          9408,
+          672,
+          48,
+          1
+        ],
+        "strides_w": [
+          1,
+          27648,
+          9216,
+          192
+        ],
+        "strides_y": [
+          37632,
+          2688,
+          192,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a334",
+        "a413",
+        "a414"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 192,
+        "9": 192,
+        "11": 192,
+        "13": 196
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a414",
+        "a415"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 37632
+      }
+    },
+    {
+      "entry_func_name": "concat",
+      "inputs": [
+        "a412",
+        "a415"
+      ],
+      "outputs": [
+        "a416"
+      ],
+      "call_option": {
+        "x_shapes": [
+          [
+            1,
+            14,
+            14,
+            192
+          ],
+          [
+            1,
+            14,
+            14,
+            192
+          ]
+        ],
+        "x_strides": [
+          [
+            75264,
+            5376,
+            384,
+            1
+          ],
+          [
+            75264,
+            5376,
+            384,
+            1
+          ]
+        ],
+        "x_offsets": [
+          0,
+          192
+        ]
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a416",
+        "a335"
+      ],
+      "outputs": [
+        "a417"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 64,
+        "in_size": 384,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          75264,
+          5376,
+          384,
+          1
+        ],
+        "strides_w": [
+          1,
+          24576,
+          24576,
+          64
+        ],
+        "strides_y": [
+          12544,
+          896,
+          64,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a336",
+        "a417",
+        "a418"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 64,
+        "9": 64,
+        "11": 64,
+        "13": 196
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a418",
+        "a419"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 12544
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a419",
+        "a337"
+      ],
+      "outputs": [
+        "a420"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 64,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          12544,
+          896,
+          64,
+          1
+        ],
+        "strides_w": [
+          1,
+          16384,
+          16384,
+          256
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a338",
+        "a420",
+        "a421"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 256,
+        "9": 256,
+        "11": 256,
+        "13": 196
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a421",
+        "a422"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a419",
+        "a339"
+      ],
+      "outputs": [
+        "a423"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 64,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          12544,
+          896,
+          64,
+          1
+        ],
+        "strides_w": [
+          1,
+          49152,
+          16384,
+          256
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a340",
+        "a423",
+        "a424"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 256,
+        "9": 256,
+        "11": 256,
+        "13": 196
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a424",
+        "a425"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 50176
+      }
+    },
+    {
+      "entry_func_name": "concat",
+      "inputs": [
+        "a422",
+        "a425"
+      ],
+      "outputs": [
+        "a426"
+      ],
+      "call_option": {
+        "x_shapes": [
+          [
+            1,
+            14,
+            14,
+            256
+          ],
+          [
+            1,
+            14,
+            14,
+            256
+          ]
+        ],
+        "x_strides": [
+          [
+            100352,
+            7168,
+            512,
+            1
+          ],
+          [
+            100352,
+            7168,
+            512,
+            1
+          ]
+        ],
+        "x_offsets": [
+          0,
+          256
+        ]
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a426",
+        "a341"
+      ],
+      "outputs": [
+        "a427"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 64,
+        "in_size": 512,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          100352,
+          7168,
+          512,
+          1
+        ],
+        "strides_w": [
+          1,
+          32768,
+          32768,
+          64
+        ],
+        "strides_y": [
+          12544,
+          896,
+          64,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a342",
+        "a427",
+        "a428"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 64,
+        "9": 64,
+        "11": 64,
+        "13": 196
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a428",
+        "a429"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 12544
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a429",
+        "a343"
+      ],
+      "outputs": [
+        "a430"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 64,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          12544,
+          896,
+          64,
+          1
+        ],
+        "strides_w": [
+          1,
+          16384,
+          16384,
+          256
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a344",
+        "a430",
+        "a431"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 256,
+        "9": 256,
+        "11": 256,
+        "13": 196
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a431",
+        "a432"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 50176
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a429",
+        "a345"
+      ],
+      "outputs": [
+        "a433"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 256,
+        "in_size": 64,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          12544,
+          896,
+          64,
+          1
+        ],
+        "strides_w": [
+          1,
+          49152,
+          16384,
+          256
+        ],
+        "strides_y": [
+          50176,
+          3584,
+          256,
+          1
+        ],
+        "padding": [
+          1,
+          1
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          3,
+          3
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a346",
+        "a433",
+        "a434"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 256,
+        "9": 256,
+        "11": 256,
+        "13": 196
+      }
+    },
+    {
+      "entry_func_name": "relu_3693ec08de79c27ab35127ab0a10897afa2249f09efd879f2a8158d1",
+      "inputs": [
+        "a434",
+        "a435"
+      ],
+      "outputs": [],
+      "call_option": {
+        "5": 50176
+      }
+    },
+    {
+      "entry_func_name": "concat",
+      "inputs": [
+        "a432",
+        "a435"
+      ],
+      "outputs": [
+        "a436"
+      ],
+      "call_option": {
+        "x_shapes": [
+          [
+            1,
+            14,
+            14,
+            256
+          ],
+          [
+            1,
+            14,
+            14,
+            256
+          ]
+        ],
+        "x_strides": [
+          [
+            100352,
+            7168,
+            512,
+            1
+          ],
+          [
+            100352,
+            7168,
+            512,
+            1
+          ]
+        ],
+        "x_offsets": [
+          0,
+          256
+        ]
+      }
+    },
+    {
+      "entry_func_name": "convolution_2d",
+      "inputs": [
+        "a436",
+        "a347"
+      ],
+      "outputs": [
+        "a437"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 1000,
+        "in_size": 512,
+        "out_spatial": [
+          14,
+          14
+        ],
+        "strides_x": [
+          100352,
+          7168,
+          512,
+          1
+        ],
+        "strides_w": [
+          1,
+          512000,
+          512000,
+          1000
+        ],
+        "strides_y": [
+          196000,
+          14000,
+          1000,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          1,
+          1
+        ],
+        "ksize": [
+          1,
+          1
+        ],
+        "dilation_rate": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "entry_func_name": "elementwiseadd_653f37079602765521bb5cca1b07d2b80af153b45cd96b6cf18bb657",
+      "inputs": [
+        "a348",
+        "a437",
+        "a438"
+      ],
+      "outputs": [],
+      "call_option": {
+        "7": 1000,
+        "9": 1000,
+        "11": 1000,
+        "13": 196
+      }
+    },
+    {
+      "entry_func_name": "average_pooling_2d",
+      "inputs": [
+        "a438"
+      ],
+      "outputs": [
+        "a439"
+      ],
+      "call_option": {
+        "in_spatial": [
+          14,
+          14
+        ],
+        "n": 1,
+        "out_size": 1000,
+        "out_spatial": [
+          2,
+          2
+        ],
+        "strides_x": [
+          196000,
+          14000,
+          1000,
+          1
+        ],
+        "strides_y": [
+          4000,
+          2000,
+          1000,
+          1
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "stride": [
+          13,
+          13
+        ],
+        "ksize": [
+          13,
+          13
+        ]
+      }
+    },
+    {
+      "entry_func_name": "reshape",
+      "inputs": [
+        "a439"
+      ],
+      "outputs": [
+        "a440"
+      ],
+      "call_option": {
+        "length": 4000
+      }
+    },
+    {
+      "entry_func_name": "softmax",
+      "inputs": [
+        "a440"
+      ],
+      "outputs": [
+        "a350"
+      ],
+      "call_option": {
+        "N": 1,
+        "C": 4000
+      }
+    }
+  ],
+  "weight_encoding": "raw",
+  "memory_layout": {
+    "static": {
+      "size": 2991656,
+      "allocations": {
+        "a349": {
+          "name": "a349",
+          "offset": 2841128,
+          "size": 150528
+        },
+        "a351": {
+          "name": "a351",
+          "offset": 1235496,
+          "size": 802816
+        },
+        "a352": {
+          "name": "a352",
+          "offset": 2038312,
+          "size": 802816
+        },
+        "a353": {
+          "name": "a353",
+          "offset": 1235496,
+          "size": 802816
+        },
+        "a354": {
+          "name": "a354",
+          "offset": 2038312,
+          "size": 200704
+        },
+        "a355": {
+          "name": "a355",
+          "offset": 1937960,
+          "size": 50176
+        },
+        "a356": {
+          "name": "a356",
+          "offset": 1988136,
+          "size": 50176
+        },
+        "a357": {
+          "name": "a357",
+          "offset": 2239016,
+          "size": 50176
+        },
+        "a358": {
+          "name": "a358",
+          "offset": 2038312,
+          "size": 200704
+        },
+        "a359": {
+          "name": "a359",
+          "offset": 1837608,
+          "size": 200704
+        },
+        "a361": {
+          "name": "a361",
+          "offset": 1837608,
+          "size": 200704
+        },
+        "a362": {
+          "name": "a362",
+          "offset": 1235496,
+          "size": 200704
+        },
+        "a363": {
+          "name": "a363",
+          "offset": 1636904,
+          "size": 200704
+        },
+        "a360": {
+          "name": "a360",
+          "offset": 2038312,
+          "size": 200704
+        },
+        "a364": {
+          "name": "a364",
+          "offset": 1235496,
+          "size": 401408
+        },
+        "a365": {
+          "name": "a365",
+          "offset": 1988136,
+          "size": 50176
+        },
+        "a366": {
+          "name": "a366",
+          "offset": 1937960,
+          "size": 50176
+        },
+        "a367": {
+          "name": "a367",
+          "offset": 2138664,
+          "size": 50176
+        },
+        "a368": {
+          "name": "a368",
+          "offset": 1636904,
+          "size": 200704
+        },
+        "a369": {
+          "name": "a369",
+          "offset": 1837608,
+          "size": 200704
+        },
+        "a371": {
+          "name": "a371",
+          "offset": 1837608,
+          "size": 200704
+        },
+        "a372": {
+          "name": "a372",
+          "offset": 2038312,
+          "size": 200704
+        },
+        "a373": {
+          "name": "a373",
+          "offset": 1837608,
+          "size": 200704
+        },
+        "a370": {
+          "name": "a370",
+          "offset": 1636904,
+          "size": 200704
+        },
+        "a374": {
+          "name": "a374",
+          "offset": 1235496,
+          "size": 401408
+        },
+        "a375": {
+          "name": "a375",
+          "offset": 1937960,
+          "size": 100352
+        },
+        "a376": {
+          "name": "a376",
+          "offset": 2439720,
+          "size": 25088
+        },
+        "a377": {
+          "name": "a377",
+          "offset": 2013224,
+          "size": 25088
+        },
+        "a378": {
+          "name": "a378",
+          "offset": 2439720,
+          "size": 25088
+        },
+        "a379": {
+          "name": "a379",
+          "offset": 1837608,
+          "size": 100352
+        },
+        "a380": {
+          "name": "a380",
+          "offset": 1937960,
+          "size": 100352
+        },
+        "a382": {
+          "name": "a382",
+          "offset": 1937960,
+          "size": 100352
+        },
+        "a383": {
+          "name": "a383",
+          "offset": 2038312,
+          "size": 100352
+        },
+        "a384": {
+          "name": "a384",
+          "offset": 1937960,
+          "size": 100352
+        },
+        "a381": {
+          "name": "a381",
+          "offset": 1837608,
+          "size": 100352
+        },
+        "a385": {
+          "name": "a385",
+          "offset": 1636904,
+          "size": 200704
+        },
+        "a386": {
+          "name": "a386",
+          "offset": 1988136,
+          "size": 25088
+        },
+        "a387": {
+          "name": "a387",
+          "offset": 2013224,
+          "size": 25088
+        },
+        "a388": {
+          "name": "a388",
+          "offset": 2439720,
+          "size": 25088
+        },
+        "a389": {
+          "name": "a389",
+          "offset": 1937960,
+          "size": 100352
+        },
+        "a390": {
+          "name": "a390",
+          "offset": 2138664,
+          "size": 100352
+        },
+        "a392": {
+          "name": "a392",
+          "offset": 2138664,
+          "size": 100352
+        },
+        "a393": {
+          "name": "a393",
+          "offset": 1937960,
+          "size": 100352
+        },
+        "a394": {
+          "name": "a394",
+          "offset": 1837608,
+          "size": 100352
+        },
+        "a391": {
+          "name": "a391",
+          "offset": 2038312,
+          "size": 100352
+        },
+        "a395": {
+          "name": "a395",
+          "offset": 1636904,
+          "size": 200704
+        },
+        "a396": {
+          "name": "a396",
+          "offset": 1937960,
+          "size": 50176
+        },
+        "a397": {
+          "name": "a397",
+          "offset": 2439720,
+          "size": 9408
+        },
+        "a398": {
+          "name": "a398",
+          "offset": 2025768,
+          "size": 9408
+        },
+        "a399": {
+          "name": "a399",
+          "offset": 2439720,
+          "size": 9408
+        },
+        "a400": {
+          "name": "a400",
+          "offset": 1988136,
+          "size": 37632
+        },
+        "a401": {
+          "name": "a401",
+          "offset": 2289192,
+          "size": 37632
+        },
+        "a403": {
+          "name": "a403",
+          "offset": 1988136,
+          "size": 37632
+        },
+        "a404": {
+          "name": "a404",
+          "offset": 2364456,
+          "size": 37632
+        },
+        "a405": {
+          "name": "a405",
+          "offset": 2402088,
+          "size": 37632
+        },
+        "a402": {
+          "name": "a402",
+          "offset": 2326824,
+          "size": 37632
+        },
+        "a406": {
+          "name": "a406",
+          "offset": 1937960,
+          "size": 75264
+        },
+        "a407": {
+          "name": "a407",
+          "offset": 2025768,
+          "size": 9408
+        },
+        "a408": {
+          "name": "a408",
+          "offset": 2439720,
+          "size": 9408
+        },
+        "a409": {
+          "name": "a409",
+          "offset": 2025768,
+          "size": 9408
+        },
+        "a410": {
+          "name": "a410",
+          "offset": 1988136,
+          "size": 37632
+        },
+        "a411": {
+          "name": "a411",
+          "offset": 2439720,
+          "size": 37632
+        },
+        "a413": {
+          "name": "a413",
+          "offset": 2439720,
+          "size": 37632
+        },
+        "a414": {
+          "name": "a414",
+          "offset": 1988136,
+          "size": 37632
+        },
+        "a415": {
+          "name": "a415",
+          "offset": 2439720,
+          "size": 37632
+        },
+        "a412": {
+          "name": "a412",
+          "offset": 2402088,
+          "size": 37632
+        },
+        "a416": {
+          "name": "a416",
+          "offset": 1937960,
+          "size": 75264
+        },
+        "a417": {
+          "name": "a417",
+          "offset": 2025768,
+          "size": 12544
+        },
+        "a418": {
+          "name": "a418",
+          "offset": 2013224,
+          "size": 12544
+        },
+        "a419": {
+          "name": "a419",
+          "offset": 2439720,
+          "size": 12544
+        },
+        "a420": {
+          "name": "a420",
+          "offset": 1937960,
+          "size": 50176
+        },
+        "a421": {
+          "name": "a421",
+          "offset": 1988136,
+          "size": 50176
+        },
+        "a423": {
+          "name": "a423",
+          "offset": 1988136,
+          "size": 50176
+        },
+        "a424": {
+          "name": "a424",
+          "offset": 1937960,
+          "size": 50176
+        },
+        "a425": {
+          "name": "a425",
+          "offset": 2239016,
+          "size": 50176
+        },
+        "a422": {
+          "name": "a422",
+          "offset": 2138664,
+          "size": 50176
+        },
+        "a426": {
+          "name": "a426",
+          "offset": 1937960,
+          "size": 100352
+        },
+        "a427": {
+          "name": "a427",
+          "offset": 2439720,
+          "size": 12544
+        },
+        "a428": {
+          "name": "a428",
+          "offset": 2013224,
+          "size": 12544
+        },
+        "a429": {
+          "name": "a429",
+          "offset": 2439720,
+          "size": 12544
+        },
+        "a430": {
+          "name": "a430",
+          "offset": 1988136,
+          "size": 50176
+        },
+        "a431": {
+          "name": "a431",
+          "offset": 2239016,
+          "size": 50176
+        },
+        "a433": {
+          "name": "a433",
+          "offset": 2239016,
+          "size": 50176
+        },
+        "a434": {
+          "name": "a434",
+          "offset": 2289192,
+          "size": 50176
+        },
+        "a435": {
+          "name": "a435",
+          "offset": 1937960,
+          "size": 50176
+        },
+        "a432": {
+          "name": "a432",
+          "offset": 1988136,
+          "size": 50176
+        },
+        "a436": {
+          "name": "a436",
+          "offset": 2138664,
+          "size": 100352
+        },
+        "a437": {
+          "name": "a437",
+          "offset": 1837608,
+          "size": 196000
+        },
+        "a438": {
+          "name": "a438",
+          "offset": 2038312,
+          "size": 196000
+        },
+        "a439": {
+          "name": "a439",
+          "offset": 2025768,
+          "size": 4000
+        },
+        "a440": {
+          "name": "a440",
+          "offset": 2029768,
+          "size": 4000
+        },
+        "a350": {
+          "name": "a350",
+          "offset": 2025768,
+          "size": 4000
+        },
+        "a297": {
+          "name": "a297",
+          "offset": 0,
+          "size": 1728
+        },
+        "a298": {
+          "name": "a298",
+          "offset": 1728,
+          "size": 64
+        },
+        "a299": {
+          "name": "a299",
+          "offset": 1792,
+          "size": 1024
+        },
+        "a300": {
+          "name": "a300",
+          "offset": 2816,
+          "size": 16
+        },
+        "a301": {
+          "name": "a301",
+          "offset": 2832,
+          "size": 1024
+        },
+        "a302": {
+          "name": "a302",
+          "offset": 3856,
+          "size": 64
+        },
+        "a303": {
+          "name": "a303",
+          "offset": 3920,
+          "size": 9216
+        },
+        "a304": {
+          "name": "a304",
+          "offset": 13136,
+          "size": 64
+        },
+        "a305": {
+          "name": "a305",
+          "offset": 13200,
+          "size": 2048
+        },
+        "a306": {
+          "name": "a306",
+          "offset": 15248,
+          "size": 16
+        },
+        "a307": {
+          "name": "a307",
+          "offset": 15264,
+          "size": 1024
+        },
+        "a308": {
+          "name": "a308",
+          "offset": 16288,
+          "size": 64
+        },
+        "a309": {
+          "name": "a309",
+          "offset": 16352,
+          "size": 9216
+        },
+        "a310": {
+          "name": "a310",
+          "offset": 25568,
+          "size": 64
+        },
+        "a311": {
+          "name": "a311",
+          "offset": 25632,
+          "size": 4096
+        },
+        "a312": {
+          "name": "a312",
+          "offset": 29728,
+          "size": 32
+        },
+        "a313": {
+          "name": "a313",
+          "offset": 29760,
+          "size": 4096
+        },
+        "a314": {
+          "name": "a314",
+          "offset": 33856,
+          "size": 128
+        },
+        "a315": {
+          "name": "a315",
+          "offset": 33984,
+          "size": 36864
+        },
+        "a316": {
+          "name": "a316",
+          "offset": 70848,
+          "size": 128
+        },
+        "a317": {
+          "name": "a317",
+          "offset": 70976,
+          "size": 8192
+        },
+        "a318": {
+          "name": "a318",
+          "offset": 79168,
+          "size": 32
+        },
+        "a319": {
+          "name": "a319",
+          "offset": 79200,
+          "size": 4096
+        },
+        "a320": {
+          "name": "a320",
+          "offset": 83296,
+          "size": 128
+        },
+        "a321": {
+          "name": "a321",
+          "offset": 83424,
+          "size": 36864
+        },
+        "a322": {
+          "name": "a322",
+          "offset": 120288,
+          "size": 128
+        },
+        "a323": {
+          "name": "a323",
+          "offset": 120416,
+          "size": 12288
+        },
+        "a324": {
+          "name": "a324",
+          "offset": 132704,
+          "size": 48
+        },
+        "a325": {
+          "name": "a325",
+          "offset": 132752,
+          "size": 9216
+        },
+        "a326": {
+          "name": "a326",
+          "offset": 141968,
+          "size": 192
+        },
+        "a327": {
+          "name": "a327",
+          "offset": 142160,
+          "size": 82944
+        },
+        "a328": {
+          "name": "a328",
+          "offset": 225104,
+          "size": 192
+        },
+        "a329": {
+          "name": "a329",
+          "offset": 225296,
+          "size": 18432
+        },
+        "a330": {
+          "name": "a330",
+          "offset": 243728,
+          "size": 48
+        },
+        "a331": {
+          "name": "a331",
+          "offset": 243776,
+          "size": 9216
+        },
+        "a332": {
+          "name": "a332",
+          "offset": 252992,
+          "size": 192
+        },
+        "a333": {
+          "name": "a333",
+          "offset": 253184,
+          "size": 82944
+        },
+        "a334": {
+          "name": "a334",
+          "offset": 336128,
+          "size": 192
+        },
+        "a335": {
+          "name": "a335",
+          "offset": 336320,
+          "size": 24576
+        },
+        "a336": {
+          "name": "a336",
+          "offset": 360896,
+          "size": 64
+        },
+        "a337": {
+          "name": "a337",
+          "offset": 360960,
+          "size": 16384
+        },
+        "a338": {
+          "name": "a338",
+          "offset": 377344,
+          "size": 256
+        },
+        "a339": {
+          "name": "a339",
+          "offset": 377600,
+          "size": 147456
+        },
+        "a340": {
+          "name": "a340",
+          "offset": 525056,
+          "size": 256
+        },
+        "a341": {
+          "name": "a341",
+          "offset": 525312,
+          "size": 32768
+        },
+        "a342": {
+          "name": "a342",
+          "offset": 558080,
+          "size": 64
+        },
+        "a343": {
+          "name": "a343",
+          "offset": 558144,
+          "size": 16384
+        },
+        "a344": {
+          "name": "a344",
+          "offset": 574528,
+          "size": 256
+        },
+        "a345": {
+          "name": "a345",
+          "offset": 574784,
+          "size": 147456
+        },
+        "a346": {
+          "name": "a346",
+          "offset": 722240,
+          "size": 256
+        },
+        "a347": {
+          "name": "a347",
+          "offset": 722496,
+          "size": 512000
+        },
+        "a348": {
+          "name": "a348",
+          "offset": 1234496,
+          "size": 1000
+        }
+      }
+    },
+    "dynamic": {
+      "size": 0,
+      "allocations": {}
+    }
+  },
+  "placeholders": {},
+  "inputs": [
+    "a349"
+  ],
+  "outputs": [
+    "a350"
+  ],
+  "licenses": {
+    "webdnn": "(C) Machine Intelligence Laboratory (The University of Tokyo), MIT License"
+  }
+}
