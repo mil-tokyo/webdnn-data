@@ -1012,7 +1012,7 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
 }
 
 
-kernel void fusedelementwise_64f6578ea8356a79e688fff775e0187ada7357cadb2634c6994b6f15(device float * static_buffer[[buffer(0)]],
+kernel void fusedelementwise_855ad3208167b85cd53ecff129502284363603cb8bd77639f64c5c88(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint gid[[thread_position_in_grid]],
@@ -1045,56 +1045,11 @@ kernel void fusedelementwise_64f6578ea8356a79e688fff775e0187ada7357cadb2634c6994
             }
             float v14;
             {
-                v14 = v13 * v8;
+                v14 = v13 * v9;
             }
             float v15;
             {
-                v15 = v14 + v9;
-            }
-            v5[d0 + d1*v7] = v15;
-        }
-    }
-}
-
-
-kernel void fusedelementwise_a2a930f4af84e50dafd992d1d0ad7d711a096597302d47acf9a735ed(device float * static_buffer[[buffer(0)]],
-                          device float * dynamic_buffer[[buffer(1)]],
-                          const device int * meta_buffer [[buffer(2)]],
-                          uint gid[[thread_position_in_grid]],
-                          uint num_threads[[threads_per_grid]])
-{
-    const device float * v1 = (static_buffer + meta_buffer[0]);
-    const device float * v2 = (static_buffer + meta_buffer[1]);
-    const device float * v3 = (static_buffer + meta_buffer[2]);
-    const device float * v4 = (static_buffer + meta_buffer[3]);
-    device float * v5 = (static_buffer + meta_buffer[4]);
-    const int v6 = meta_buffer[5];
-    const int v7 = meta_buffer[6];
-    const int D0 = meta_buffer[7];
-    const int D1 = meta_buffer[8];
-    int d0;
-    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {
-        const float v8 = v1[d0];
-        const float v9 = v2[d0];
-        const float v10 = v3[d0];
-        int d1;
-        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {
-            const float v11 = v4[d0 + d1*v6];
-            float v12;
-            {
-                v12 = v11 + v9;
-            }
-            float v13;
-            {
-                v13 = v12 < 0.0 ? (exp(v12)-1) : v12;
-            }
-            float v14;
-            {
-                v14 = v13 * v8;
-            }
-            float v15;
-            {
-                v15 = v14 + v10;
+                v15 = v14 + v8;
             }
             v5[d0 + d1*v7] = v15;
         }
@@ -1249,42 +1204,6 @@ kernel void fusedelementwise_3cfde4edccf2d157c64e8a5e39f8ee66e10ec80af20ca9d5ae0
 }
 
 
-kernel void fusedelementwise_a0470ecbf11c7513e3b8527a2337bcc20d682405fa9132406c85d96a(device float * static_buffer[[buffer(0)]],
-                          device float * dynamic_buffer[[buffer(1)]],
-                          const device int * meta_buffer [[buffer(2)]],
-                          uint gid[[thread_position_in_grid]],
-                          uint num_threads[[threads_per_grid]])
-{
-    const device float * v1 = (static_buffer + meta_buffer[0]);
-    const device float * v2 = (static_buffer + meta_buffer[1]);
-    const device float * v3 = (static_buffer + meta_buffer[2]);
-    device float * v4 = (static_buffer + meta_buffer[3]);
-    const int v5 = meta_buffer[4];
-    const int v6 = meta_buffer[5];
-    const int v7 = meta_buffer[6];
-    const int D0 = meta_buffer[7];
-    const int D1 = meta_buffer[8];
-    int d0;
-    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {
-        const float v8 = v1[d0];
-        int d1;
-        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {
-            const float v9 = v2[d0 + d1*v5];
-            const float v10 = v3[d0 + d1*v6];
-            float v11;
-            {
-                v11 = v9 + v10;
-            }
-            float v12;
-            {
-                v12 = v11 + v8;
-            }
-            v4[d0 + d1*v7] = v12;
-        }
-    }
-}
-
-
 kernel void fusedelementwise_f2e7c3b0f54722d02845aa5b8ad7d56b1f543fd41ee3c3fe3583099d(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
@@ -1310,6 +1229,42 @@ kernel void fusedelementwise_f2e7c3b0f54722d02845aa5b8ad7d56b1f543fd41ee3c3fe358
             float v11;
             {
                 v11 = v10 + v9;
+            }
+            float v12;
+            {
+                v12 = v11 + v8;
+            }
+            v4[d0 + d1*v7] = v12;
+        }
+    }
+}
+
+
+kernel void fusedelementwise_a0470ecbf11c7513e3b8527a2337bcc20d682405fa9132406c85d96a(device float * static_buffer[[buffer(0)]],
+                          device float * dynamic_buffer[[buffer(1)]],
+                          const device int * meta_buffer [[buffer(2)]],
+                          uint gid[[thread_position_in_grid]],
+                          uint num_threads[[threads_per_grid]])
+{
+    const device float * v1 = (static_buffer + meta_buffer[0]);
+    const device float * v2 = (static_buffer + meta_buffer[1]);
+    const device float * v3 = (static_buffer + meta_buffer[2]);
+    device float * v4 = (static_buffer + meta_buffer[3]);
+    const int v5 = meta_buffer[4];
+    const int v6 = meta_buffer[5];
+    const int v7 = meta_buffer[6];
+    const int D0 = meta_buffer[7];
+    const int D1 = meta_buffer[8];
+    int d0;
+    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {
+        const float v8 = v1[d0];
+        int d1;
+        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {
+            const float v9 = v2[d0 + d1*v5];
+            const float v10 = v3[d0 + d1*v6];
+            float v11;
+            {
+                v11 = v9 + v10;
             }
             float v12;
             {
@@ -1368,7 +1323,7 @@ kernel void col2im_8a1be4f38d62554df5813223c19078e9dec475d3123d422dd2cbee28(devi
 }
 
 
-kernel void fusedelementwise_855ad3208167b85cd53ecff129502284363603cb8bd77639f64c5c88(device float * static_buffer[[buffer(0)]],
+kernel void fusedelementwise_a2a930f4af84e50dafd992d1d0ad7d711a096597302d47acf9a735ed(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint gid[[thread_position_in_grid]],
@@ -1393,7 +1348,7 @@ kernel void fusedelementwise_855ad3208167b85cd53ecff129502284363603cb8bd77639f64
             const float v11 = v4[d0 + d1*v6];
             float v12;
             {
-                v12 = v11 + v10;
+                v12 = v11 + v9;
             }
             float v13;
             {
@@ -1401,11 +1356,11 @@ kernel void fusedelementwise_855ad3208167b85cd53ecff129502284363603cb8bd77639f64
             }
             float v14;
             {
-                v14 = v13 * v9;
+                v14 = v13 * v8;
             }
             float v15;
             {
-                v15 = v14 + v8;
+                v15 = v14 + v10;
             }
             v5[d0 + d1*v7] = v15;
         }
@@ -1767,7 +1722,7 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
 }
 
 
-kernel void fusedelementwise_b25ccdde24c28ffe070ed082512bd1c7c1afa0657bd494eb618c6b98(device float * static_buffer[[buffer(0)]],
+kernel void fusedelementwise_73a4e22a76dd8f6822cbd7838747feb9d06349de918775cf6a5f84f2(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint gid[[thread_position_in_grid]],
@@ -1786,7 +1741,7 @@ kernel void fusedelementwise_b25ccdde24c28ffe070ed082512bd1c7c1afa0657bd494eb618
     const int D1 = meta_buffer[10];
     int d0;
     for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {
-        const float v10 = v2[d0];
+        const float v10 = v3[d0];
         int d1;
         for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {
             const float v11 = v4[d0 + d1*v8];
@@ -1798,12 +1753,12 @@ kernel void fusedelementwise_b25ccdde24c28ffe070ed082512bd1c7c1afa0657bd494eb618
             {
                 v13 = (v12 >= 10.0 ? 1.0 : tanh(v12));
             }
-            const float v14 = v3[d0*v7 + d1];
+            const float v14 = v1[d0*v6 + d1];
             float v15;
             {
                 v15 = v13 * v14;
             }
-            const float v16 = v1[d0*v6 + d1];
+            const float v16 = v2[d0*v7 + d1];
             float v17;
             {
                 v17 = v15 + v16;
