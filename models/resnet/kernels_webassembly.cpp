@@ -2,143 +2,143 @@
 #include <stdlib.h>
 #include <math.h>
 
-float static_buffer[29289832];
+float static_buffer[57002576];
 float* dynamic_buffer = nullptr;
 
-int meta_buf_0[] = {29139304,25526632,1,3,224,224,112,112,7,7,1,1,2,2,3,3};
-int meta_buf_1[] = {25526632,0,28135784,12544,64,147};
-int meta_buf_2[] = {9408,28135784,28135784,64,64,64,12544};
-int meta_buf_3[] = {28135784,27031912,1,112,112,64,56,56,3,3,2,2,0,0};
-int meta_buf_4[] = {27031912,9472,28135784,3136,256,64};
-int meta_buf_5[] = {27031912,25856,27332968,3136,64,64};
-int meta_buf_6[] = {29952,27332968,27332968,64,64,64,3136};
-int meta_buf_7[] = {27332968,25526632,1,64,56,56,56,56,3,3,1,1,1,1,1,1};
-int meta_buf_8[] = {25526632,30016,27332968,3136,64,576};
-int meta_buf_9[] = {66880,27332968,27332968,64,64,64,3136};
-int meta_buf_10[] = {27332968,66944,25526632,3136,256,64};
-int meta_buf_11[] = {83328,28135784,25526632,27332968,256,256,256,256,3136};
-int meta_buf_12[] = {27332968,83584,28537192,3136,64,256};
-int meta_buf_13[] = {99968,28537192,28537192,64,64,64,3136};
-int meta_buf_14[] = {28537192,25526632,1,64,56,56,56,56,3,3,1,1,1,1,1,1};
-int meta_buf_15[] = {25526632,100032,28938600,3136,64,576};
-int meta_buf_16[] = {136896,28938600,28938600,64,64,64,3136};
-int meta_buf_17[] = {28938600,136960,28135784,3136,256,64};
-int meta_buf_18[] = {153344,28135784,27332968,28135784,256,256,256,256,3136};
-int meta_buf_19[] = {28135784,153600,27332968,3136,64,256};
-int meta_buf_20[] = {169984,27332968,27332968,64,64,64,3136};
-int meta_buf_21[] = {27332968,25526632,1,64,56,56,56,56,3,3,1,1,1,1,1,1};
-int meta_buf_22[] = {25526632,170048,27332968,3136,64,576};
-int meta_buf_23[] = {206912,27332968,27332968,64,64,64,3136};
-int meta_buf_24[] = {27332968,206976,25526632,3136,256,64};
-int meta_buf_25[] = {223360,25526632,28135784,25526632,256,256,256,256,3136};
-int meta_buf_26[] = {25526632,27031912,1,256,56,56,28,28,1,1,1,1,2,2,0,0};
-int meta_buf_27[] = {27031912,223616,26429800,784,512,256};
-int meta_buf_28[] = {25526632,27031912,1,256,56,56,28,28,1,1,1,1,2,2,0,0};
-int meta_buf_29[] = {27031912,354688,27232616,784,128,256};
-int meta_buf_30[] = {387456,27232616,28838248,128,128,128,784};
-int meta_buf_31[] = {28838248,25526632,1,128,28,28,28,28,3,3,1,1,1,1,1,1};
-int meta_buf_32[] = {25526632,387584,27232616,784,128,1152};
-int meta_buf_33[] = {535040,27232616,28838248,128,128,128,784};
-int meta_buf_34[] = {28838248,535168,26831208,784,512,128};
-int meta_buf_35[] = {600704,26831208,26429800,28135784,512,512,512,512,784};
-int meta_buf_36[] = {28135784,601216,27232616,784,128,512};
-int meta_buf_37[] = {666752,27232616,28838248,128,128,128,784};
-int meta_buf_38[] = {28838248,25526632,1,128,28,28,28,28,3,3,1,1,1,1,1,1};
-int meta_buf_39[] = {25526632,666880,27232616,784,128,1152};
-int meta_buf_40[] = {814336,27232616,27232616,128,128,128,784};
-int meta_buf_41[] = {27232616,814464,26831208,784,512,128};
-int meta_buf_42[] = {880000,26831208,28135784,28537192,512,512,512,512,784};
-int meta_buf_43[] = {28537192,880512,27232616,784,128,512};
-int meta_buf_44[] = {946048,27232616,27232616,128,128,128,784};
-int meta_buf_45[] = {27232616,25526632,1,128,28,28,28,28,3,3,1,1,1,1,1,1};
-int meta_buf_46[] = {25526632,946176,27232616,784,128,1152};
-int meta_buf_47[] = {1093632,27232616,27332968,128,128,128,784};
-int meta_buf_48[] = {27332968,1093760,26831208,784,512,128};
-int meta_buf_49[] = {1159296,26831208,28537192,27332968,512,512,512,512,784};
-int meta_buf_50[] = {27332968,1159808,27232616,784,128,512};
-int meta_buf_51[] = {1225344,27232616,27232616,128,128,128,784};
-int meta_buf_52[] = {27232616,25526632,1,128,28,28,28,28,3,3,1,1,1,1,1,1};
-int meta_buf_53[] = {25526632,1225472,27232616,784,128,1152};
-int meta_buf_54[] = {1372928,27232616,28838248,128,128,128,784};
-int meta_buf_55[] = {28838248,1373056,26831208,784,512,128};
-int meta_buf_56[] = {1438592,27332968,26831208,27332968,512,512,512,512,784};
-int meta_buf_57[] = {27332968,27232616,1,512,28,28,14,14,1,1,1,1,2,2,0,0};
-int meta_buf_58[] = {27232616,1439104,27031912,196,1024,512};
-int meta_buf_59[] = {27332968,27232616,1,512,28,28,14,14,1,1,1,1,2,2,0,0};
-int meta_buf_60[] = {27232616,1963392,28838248,196,256,512};
-int meta_buf_61[] = {2094464,28838248,28838248,256,256,256,196};
-int meta_buf_62[] = {28838248,25526632,1,256,14,14,14,14,3,3,1,1,1,1,1,1};
-int meta_buf_63[] = {25526632,2094720,27282792,196,256,2304};
-int meta_buf_64[] = {2684544,27282792,27282792,256,256,256,196};
-int meta_buf_65[] = {27282792,2684800,28537192,196,1024,256};
-int meta_buf_66[] = {2946944,28537192,27031912,28537192,1024,1024,1024,1024,196};
-int meta_buf_67[] = {28537192,2947968,27282792,196,256,1024};
-int meta_buf_68[] = {3210112,27282792,28838248,256,256,256,196};
-int meta_buf_69[] = {28838248,25526632,1,256,14,14,14,14,3,3,1,1,1,1,1,1};
-int meta_buf_70[] = {25526632,3210368,27282792,196,256,2304};
-int meta_buf_71[] = {3800192,27282792,28838248,256,256,256,196};
-int meta_buf_72[] = {28838248,3800448,27031912,196,1024,256};
-int meta_buf_73[] = {4062592,28537192,27031912,28537192,1024,1024,1024,1024,196};
-int meta_buf_74[] = {28537192,4063616,27282792,196,256,1024};
-int meta_buf_75[] = {4325760,27282792,27282792,256,256,256,196};
-int meta_buf_76[] = {27282792,25526632,1,256,14,14,14,14,3,3,1,1,1,1,1,1};
-int meta_buf_77[] = {25526632,4326016,27282792,196,256,2304};
-int meta_buf_78[] = {4915840,27282792,27282792,256,256,256,196};
-int meta_buf_79[] = {27282792,4916096,27031912,196,1024,256};
-int meta_buf_80[] = {5178240,28537192,27031912,28537192,1024,1024,1024,1024,196};
-int meta_buf_81[] = {28537192,5179264,27282792,196,256,1024};
-int meta_buf_82[] = {5441408,27282792,27282792,256,256,256,196};
-int meta_buf_83[] = {27282792,25526632,1,256,14,14,14,14,3,3,1,1,1,1,1,1};
-int meta_buf_84[] = {25526632,5441664,27282792,196,256,2304};
-int meta_buf_85[] = {6031488,27282792,27282792,256,256,256,196};
-int meta_buf_86[] = {27282792,6031744,27031912,196,1024,256};
-int meta_buf_87[] = {6293888,27031912,28537192,28737896,1024,1024,1024,1024,196};
-int meta_buf_88[] = {28737896,6294912,27282792,196,256,1024};
-int meta_buf_89[] = {6557056,27282792,27282792,256,256,256,196};
-int meta_buf_90[] = {27282792,25526632,1,256,14,14,14,14,3,3,1,1,1,1,1,1};
-int meta_buf_91[] = {25526632,6557312,27282792,196,256,2304};
-int meta_buf_92[] = {7147136,27282792,27282792,256,256,256,196};
-int meta_buf_93[] = {27282792,7147392,27332968,196,1024,256};
-int meta_buf_94[] = {7409536,27332968,28737896,27332968,1024,1024,1024,1024,196};
-int meta_buf_95[] = {27332968,7410560,27232616,196,256,1024};
-int meta_buf_96[] = {7672704,27232616,27282792,256,256,256,196};
-int meta_buf_97[] = {27282792,25526632,1,256,14,14,14,14,3,3,1,1,1,1,1,1};
-int meta_buf_98[] = {25526632,7672960,27232616,196,256,2304};
-int meta_buf_99[] = {8262784,27232616,27232616,256,256,256,196};
-int meta_buf_100[] = {27232616,8263040,26831208,196,1024,256};
-int meta_buf_101[] = {8525184,26831208,27332968,27031912,1024,1024,1024,1024,196};
-int meta_buf_102[] = {27031912,28838248,1,1024,14,14,7,7,1,1,1,1,2,2,0,0};
-int meta_buf_103[] = {28838248,8526208,27232616,49,2048,1024};
-int meta_buf_104[] = {27031912,28838248,1,1024,14,14,7,7,1,1,1,1,2,2,0,0};
-int meta_buf_105[] = {28838248,10623360,27332968,49,512,1024};
-int meta_buf_106[] = {11147648,27332968,28838248,512,512,512,49};
-int meta_buf_107[] = {28838248,26831208,1,512,7,7,7,7,3,3,1,1,1,1,1,1};
-int meta_buf_108[] = {26831208,11148160,27332968,49,512,4608};
-int meta_buf_109[] = {13507456,27332968,28838248,512,512,512,49};
-int meta_buf_110[] = {28838248,13507968,28737896,49,2048,512};
-int meta_buf_111[] = {14556544,27232616,28737896,27232616,2048,2048,2048,2048,49};
-int meta_buf_112[] = {27232616,14558592,27332968,49,512,2048};
-int meta_buf_113[] = {15607168,27332968,27332968,512,512,512,49};
-int meta_buf_114[] = {27332968,26831208,1,512,7,7,7,7,3,3,1,1,1,1,1,1};
-int meta_buf_115[] = {26831208,15607680,27332968,49,512,4608};
-int meta_buf_116[] = {17966976,27332968,28838248,512,512,512,49};
-int meta_buf_117[] = {28838248,17967488,28737896,49,2048,512};
-int meta_buf_118[] = {19016064,27232616,28737896,28838248,2048,2048,2048,2048,49};
-int meta_buf_119[] = {28838248,19018112,27332968,49,512,2048};
-int meta_buf_120[] = {20066688,27332968,27332968,512,512,512,49};
-int meta_buf_121[] = {27332968,26831208,1,512,7,7,7,7,3,3,1,1,1,1,1,1};
-int meta_buf_122[] = {26831208,20067200,27332968,49,512,4608};
-int meta_buf_123[] = {22426496,27332968,28938600,512,512,512,49};
-int meta_buf_124[] = {28938600,22427008,27232616,49,2048,512};
-int meta_buf_125[] = {23475584,28838248,27232616,28838248,2048,2048,2048,2048,49};
-int meta_buf_126[] = {28838248,27332968,1,7,7,2048,1,1,7,7,7,7,0,0};
-int meta_buf_127[] = {27332968,23477632,27335016,1,1000,2048};
-int meta_buf_128[] = {25525632,27335016,27335016,1000};
-int meta_buf_129[] = {27335016,27335016,1,1000};
+int meta_buf_0[] = {53637736,25526632,1,3,224,224,112,112,7,7,1,1,2,2,3,3};
+int meta_buf_1[] = {25526632,0,41219176,12544,64,147};
+int meta_buf_2[] = {9408,41219176,40416360,64,64,64,12544};
+int meta_buf_3[] = {40416360,51630696,1,112,112,64,56,56,3,3,2,2,0,0};
+int meta_buf_4[] = {51630696,9472,51028584,3136,64,64};
+int meta_buf_5[] = {13568,51028584,50627176,64,64,64,3136};
+int meta_buf_6[] = {50627176,30983272,1,64,56,56,56,56,3,3,1,1,1,1,1,1};
+int meta_buf_7[] = {30983272,13632,52232808,3136,64,576};
+int meta_buf_8[] = {50496,52232808,52232808,64,64,64,3136};
+int meta_buf_9[] = {52232808,50560,39613544,3136,256,64};
+int meta_buf_10[] = {51630696,66944,38810728,3136,256,64};
+int meta_buf_11[] = {83328,38810728,39613544,38007912,256,256,256,256,3136};
+int meta_buf_12[] = {38007912,83584,50225768,3136,64,256};
+int meta_buf_13[] = {99968,50225768,50025064,64,64,64,3136};
+int meta_buf_14[] = {50025064,29176936,1,64,56,56,56,56,3,3,1,1,1,1,1,1};
+int meta_buf_15[] = {29176936,100032,50426472,3136,64,576};
+int meta_buf_16[] = {136896,50426472,50426472,64,64,64,3136};
+int meta_buf_17[] = {50426472,136960,37205096,3136,256,64};
+int meta_buf_18[] = {153344,38007912,37205096,38007912,256,256,256,256,3136};
+int meta_buf_19[] = {38007912,153600,49824360,3136,64,256};
+int meta_buf_20[] = {169984,49824360,49623656,64,64,64,3136};
+int meta_buf_21[] = {49623656,27370600,1,64,56,56,56,56,3,3,1,1,1,1,1,1};
+int meta_buf_22[] = {27370600,170048,49422952,3136,64,576};
+int meta_buf_23[] = {206912,49422952,49222248,64,64,64,3136};
+int meta_buf_24[] = {49222248,206976,36402280,3136,256,64};
+int meta_buf_25[] = {223360,38007912,36402280,38007912,256,256,256,256,3136};
+int meta_buf_26[] = {38007912,49021544,1,256,56,56,28,28,1,1,1,1,2,2,0,0};
+int meta_buf_27[] = {49021544,223616,53788264,784,128,256};
+int meta_buf_28[] = {256384,53788264,53888616,128,128,128,784};
+int meta_buf_29[] = {53888616,32789608,1,128,28,28,28,28,3,3,1,1,1,1,1,1};
+int meta_buf_30[] = {32789608,256512,54390376,784,128,1152};
+int meta_buf_31[] = {403968,54390376,54189672,128,128,128,784};
+int meta_buf_32[] = {54189672,404096,45534312,784,512,128};
+int meta_buf_33[] = {38007912,50827880,1,256,56,56,28,28,1,1,1,1,2,2,0,0};
+int meta_buf_34[] = {50827880,469632,45132904,784,512,256};
+int meta_buf_35[] = {600704,45132904,45534312,44731496,512,512,512,512,784};
+int meta_buf_36[] = {44731496,601216,53988968,784,128,512};
+int meta_buf_37[] = {666752,53988968,53988968,128,128,128,784};
+int meta_buf_38[] = {53988968,33692776,1,128,28,28,28,28,3,3,1,1,1,1,1,1};
+int meta_buf_39[] = {33692776,666880,54591080,784,128,1152};
+int meta_buf_40[] = {814336,54591080,54290024,128,128,128,784};
+int meta_buf_41[] = {54290024,814464,47942760,784,512,128};
+int meta_buf_42[] = {880000,44731496,47942760,47541352,512,512,512,512,784};
+int meta_buf_43[] = {47541352,880512,54089320,784,128,512};
+int meta_buf_44[] = {946048,54089320,54089320,128,128,128,784};
+int meta_buf_45[] = {54089320,35499112,1,128,28,28,28,28,3,3,1,1,1,1,1,1};
+int meta_buf_46[] = {35499112,946176,55494248,784,128,1152};
+int meta_buf_47[] = {1093632,55494248,55494248,128,128,128,784};
+int meta_buf_48[] = {55494248,1093760,47139944,784,512,128};
+int meta_buf_49[] = {1159296,47139944,47541352,46738536,512,512,512,512,784};
+int meta_buf_50[] = {46738536,1159808,55092840,784,128,512};
+int meta_buf_51[] = {1225344,55092840,54992488,128,128,128,784};
+int meta_buf_52[] = {54992488,34595944,1,128,28,28,28,28,3,3,1,1,1,1,1,1};
+int meta_buf_53[] = {34595944,1225472,55193192,784,128,1152};
+int meta_buf_54[] = {1372928,55193192,55193192,128,128,128,784};
+int meta_buf_55[] = {55193192,1373056,46337128,784,512,128};
+int meta_buf_56[] = {1438592,46738536,46337128,45935720,512,512,512,512,784};
+int meta_buf_57[] = {45935720,54691432,1,512,28,28,14,14,1,1,1,1,2,2,0,0};
+int meta_buf_58[] = {54691432,1439104,56297064,196,256,512};
+int meta_buf_59[] = {1570176,56297064,56246888,256,256,256,196};
+int meta_buf_60[] = {56246888,43376744,1,256,14,14,14,14,3,3,1,1,1,1,1,1};
+int meta_buf_61[] = {43376744,1570432,56447592,196,256,2304};
+int meta_buf_62[] = {2160256,56447592,56447592,256,256,256,196};
+int meta_buf_63[] = {56447592,2160512,52433512,196,1024,256};
+int meta_buf_64[] = {45935720,54490728,1,512,28,28,14,14,1,1,1,1,2,2,0,0};
+int meta_buf_65[] = {54490728,2422656,52032104,196,1024,512};
+int meta_buf_66[] = {2946944,52433512,52032104,51831400,1024,1024,1024,1024,196};
+int meta_buf_67[] = {51831400,2947968,55945832,196,256,1024};
+int meta_buf_68[] = {3210112,55945832,55845480,256,256,256,196};
+int meta_buf_69[] = {55845480,42021992,1,256,14,14,14,14,3,3,1,1,1,1,1,1};
+int meta_buf_70[] = {42021992,3210368,55795304,196,256,2304};
+int meta_buf_71[] = {3800192,55795304,55694952,256,256,256,196};
+int meta_buf_72[] = {55694952,3800448,52634216,196,1024,256};
+int meta_buf_73[] = {4062592,52634216,51831400,52634216,1024,1024,1024,1024,196};
+int meta_buf_74[] = {52634216,4063616,56347240,196,256,1024};
+int meta_buf_75[] = {4325760,56347240,56347240,256,256,256,196};
+int meta_buf_76[] = {56347240,42925160,1,256,14,14,14,14,3,3,1,1,1,1,1,1};
+int meta_buf_77[] = {42925160,4326016,56196712,196,256,2304};
+int meta_buf_78[] = {4915840,56196712,56146536,256,256,256,196};
+int meta_buf_79[] = {56146536,4916096,52834920,196,1024,256};
+int meta_buf_80[] = {5178240,52834920,52634216,52834920,1024,1024,1024,1024,196};
+int meta_buf_81[] = {52834920,5179264,56096360,196,256,1024};
+int meta_buf_82[] = {5441408,56096360,56096360,256,256,256,196};
+int meta_buf_83[] = {56096360,42473576,1,256,14,14,14,14,3,3,1,1,1,1,1,1};
+int meta_buf_84[] = {42473576,5441664,55996008,196,256,2304};
+int meta_buf_85[] = {6031488,55996008,55895656,256,256,256,196};
+int meta_buf_86[] = {55895656,6031744,51429992,196,1024,256};
+int meta_buf_87[] = {6293888,51429992,52834920,51229288,1024,1024,1024,1024,196};
+int meta_buf_88[] = {51229288,6294912,56046184,196,256,1024};
+int meta_buf_89[] = {6557056,56046184,56046184,256,256,256,196};
+int meta_buf_90[] = {56046184,43828328,1,256,14,14,14,14,3,3,1,1,1,1,1,1};
+int meta_buf_91[] = {43828328,6557312,55745128,196,256,2304};
+int meta_buf_92[] = {7147136,55745128,55745128,256,256,256,196};
+int meta_buf_93[] = {55745128,7147392,53236328,196,1024,256};
+int meta_buf_94[] = {7409536,51229288,53236328,53437032,1024,1024,1024,1024,196};
+int meta_buf_95[] = {53437032,7410560,56698472,196,256,1024};
+int meta_buf_96[] = {7672704,56698472,56648296,256,256,256,196};
+int meta_buf_97[] = {56648296,44279912,1,256,14,14,14,14,3,3,1,1,1,1,1,1};
+int meta_buf_98[] = {44279912,7672960,56547944,196,256,2304};
+int meta_buf_99[] = {8262784,56547944,56497768,256,256,256,196};
+int meta_buf_100[] = {56497768,8263040,53035624,196,1024,256};
+int meta_buf_101[] = {8525184,53437032,53035624,53437032,1024,1024,1024,1024,196};
+int meta_buf_102[] = {53437032,56397416,1,1024,14,14,7,7,1,1,1,1,2,2,0,0};
+int meta_buf_103[] = {56397416,8526208,56823912,49,512,1024};
+int meta_buf_104[] = {9050496,56823912,56899176,512,512,512,49};
+int meta_buf_105[] = {56899176,48569960,1,512,7,7,7,7,3,3,1,1,1,1,1,1};
+int meta_buf_106[] = {48569960,9051008,56974440,49,512,4608};
+int meta_buf_107[] = {11410304,56974440,56974440,512,512,512,49};
+int meta_buf_108[] = {56974440,11410816,55393896,49,2048,512};
+int meta_buf_109[] = {53437032,56598120,1,1024,14,14,7,7,1,1,1,1,2,2,0,0};
+int meta_buf_110[] = {56598120,12459392,55293544,49,2048,1024};
+int meta_buf_111[] = {14556544,55293544,55393896,55293544,2048,2048,2048,2048,49};
+int meta_buf_112[] = {55293544,14558592,56924264,49,512,2048};
+int meta_buf_113[] = {15607168,56924264,56949352,512,512,512,49};
+int meta_buf_114[] = {56949352,48795752,1,512,7,7,7,7,3,3,1,1,1,1,1,1};
+int meta_buf_115[] = {48795752,15607680,56874088,49,512,4608};
+int meta_buf_116[] = {17966976,56874088,56874088,512,512,512,49};
+int meta_buf_117[] = {56874088,17967488,54892136,49,2048,512};
+int meta_buf_118[] = {19016064,54892136,55293544,54791784,2048,2048,2048,2048,49};
+int meta_buf_119[] = {54791784,19018112,56849000,49,512,2048};
+int meta_buf_120[] = {20066688,56849000,56798824,512,512,512,49};
+int meta_buf_121[] = {56798824,48344168,1,512,7,7,7,7,3,3,1,1,1,1,1,1};
+int meta_buf_122[] = {48344168,20067200,56773736,49,512,4608};
+int meta_buf_123[] = {22426496,56773736,56748648,512,512,512,49};
+int meta_buf_124[] = {56748648,22427008,55594600,49,2048,512};
+int meta_buf_125[] = {23475584,55594600,54791784,55594600,2048,2048,2048,2048,49};
+int meta_buf_126[] = {55594600,56999528,1,7,7,2048,1,1,7,7,7,7,0,0};
+int meta_buf_127[] = {56999528,23477632,57001576,1,1000,2048};
+int meta_buf_128[] = {25525632,57001576,57001576,1000};
+int meta_buf_129[] = {57001576,57001576,1,1000};
 int* meta_buffers[] = {meta_buf_0,meta_buf_1,meta_buf_2,meta_buf_3,meta_buf_4,meta_buf_5,meta_buf_6,meta_buf_7,meta_buf_8,meta_buf_9,meta_buf_10,meta_buf_11,meta_buf_12,meta_buf_13,meta_buf_14,meta_buf_15,meta_buf_16,meta_buf_17,meta_buf_18,meta_buf_19,meta_buf_20,meta_buf_21,meta_buf_22,meta_buf_23,meta_buf_24,meta_buf_25,meta_buf_26,meta_buf_27,meta_buf_28,meta_buf_29,meta_buf_30,meta_buf_31,meta_buf_32,meta_buf_33,meta_buf_34,meta_buf_35,meta_buf_36,meta_buf_37,meta_buf_38,meta_buf_39,meta_buf_40,meta_buf_41,meta_buf_42,meta_buf_43,meta_buf_44,meta_buf_45,meta_buf_46,meta_buf_47,meta_buf_48,meta_buf_49,meta_buf_50,meta_buf_51,meta_buf_52,meta_buf_53,meta_buf_54,meta_buf_55,meta_buf_56,meta_buf_57,meta_buf_58,meta_buf_59,meta_buf_60,meta_buf_61,meta_buf_62,meta_buf_63,meta_buf_64,meta_buf_65,meta_buf_66,meta_buf_67,meta_buf_68,meta_buf_69,meta_buf_70,meta_buf_71,meta_buf_72,meta_buf_73,meta_buf_74,meta_buf_75,meta_buf_76,meta_buf_77,meta_buf_78,meta_buf_79,meta_buf_80,meta_buf_81,meta_buf_82,meta_buf_83,meta_buf_84,meta_buf_85,meta_buf_86,meta_buf_87,meta_buf_88,meta_buf_89,meta_buf_90,meta_buf_91,meta_buf_92,meta_buf_93,meta_buf_94,meta_buf_95,meta_buf_96,meta_buf_97,meta_buf_98,meta_buf_99,meta_buf_100,meta_buf_101,meta_buf_102,meta_buf_103,meta_buf_104,meta_buf_105,meta_buf_106,meta_buf_107,meta_buf_108,meta_buf_109,meta_buf_110,meta_buf_111,meta_buf_112,meta_buf_113,meta_buf_114,meta_buf_115,meta_buf_116,meta_buf_117,meta_buf_118,meta_buf_119,meta_buf_120,meta_buf_121,meta_buf_122,meta_buf_123,meta_buf_124,meta_buf_125,meta_buf_126,meta_buf_127,meta_buf_128,meta_buf_129};
 
 extern "C" void init() {
-    //static_buffer = (float*)malloc(29289832 * sizeof(float));
+    //static_buffer = (float*)malloc(57002576 * sizeof(float));
 }
 
 extern "C" float* get_static_buffer(void) {
@@ -202,21 +202,21 @@ void im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(const int *
 #include <Eigen/Dense>
 #endif
 
-void sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(const int * meta_buffer)
+void tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(const int * meta_buffer)
 {
     float *A = (static_buffer + meta_buffer[0]);
     float *B = (static_buffer + meta_buffer[1]);
     float *C = (static_buffer + meta_buffer[2]);
 
     Eigen::Map<Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > a_mat(A, meta_buffer[3], meta_buffer[5]);
-    Eigen::Map<Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > b_mat(B, meta_buffer[5], meta_buffer[4]);
+    Eigen::Map<Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor> > b_mat(B, meta_buffer[5], meta_buffer[4]);
     Eigen::Map<Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > c_mat(C, meta_buffer[3], meta_buffer[4]);
 
     c_mat.noalias() = a_mat * b_mat;
 }
 
 
-void fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(const int * meta_buffer)
+void fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(const int * meta_buffer)
 {
     const float * v1 = (static_buffer + meta_buffer[0]);
     const float * v2 = (static_buffer + meta_buffer[1]);
@@ -233,17 +233,13 @@ void fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(c
             const float v7 = v2[d0 + d1*v4];
             float v8;
             {
-                v8 = v7;
+                v8 = v7 + v6;
             }
             float v9;
             {
-                v9 = v8 + v6;
+                v9 = v8 > 0 ? v8 : 0;
             }
-            float v10;
-            {
-                v10 = v9 > 0 ? v9 : 0;
-            }
-            v3[d0 + d1*v5] = v10;
+            v3[d0 + d1*v5] = v9;
         }
     }
 }
@@ -290,7 +286,7 @@ void maxpooling2d_6f91142d9d2142f2bf5f971bbd42a9177ff9f0a3847ed38923b3b331(const
 }
 
 
-void fusedelementwise_62663821b309f709821c2bed3c8b27237224b92c6870c152eb790fde(const int * meta_buffer)
+void fusedelementwise_ed8163e6334b62b7e237abe4ab67eda0d3bcac5e83594d63f5216a4e(const int * meta_buffer)
 {
     const float * v1 = (static_buffer + meta_buffer[0]);
     const float * v2 = (static_buffer + meta_buffer[1]);
@@ -307,34 +303,26 @@ void fusedelementwise_62663821b309f709821c2bed3c8b27237224b92c6870c152eb790fde(c
         int d1;
         for (d1 = ((1 > 8) ? (0 / (1 / 8)) : 0); d1 < D1; d1 += ((1 > 8) ? 8 : 1)) {
             const float v9 = v2[d0 + d1*v5];
-            float v10;
+            const float v10 = v3[d0 + d1*v6];
+            float v11;
             {
-                v10 = v9;
+                v11 = v10 + v9;
             }
-            const float v11 = v3[d0 + d1*v6];
             float v12;
             {
-                v12 = v11;
+                v12 = v11 + v8;
             }
             float v13;
             {
-                v13 = v12 + v10;
+                v13 = v12 > 0 ? v12 : 0;
             }
-            float v14;
-            {
-                v14 = v13 + v8;
-            }
-            float v15;
-            {
-                v15 = v14 > 0 ? v14 : 0;
-            }
-            v4[d0 + d1*v7] = v15;
+            v4[d0 + d1*v7] = v13;
         }
     }
 }
 
 
-void fusedelementwise_f6680ffb6d13eb69fe8ee704786ebc77ca98cc9c69d1d437564d2413(const int * meta_buffer)
+void fusedelementwise_707f5c9b7650163b59a77eb2deeccfc5d671f335a0cdbba556f96548(const int * meta_buffer)
 {
     const float * v1 = (static_buffer + meta_buffer[0]);
     const float * v2 = (static_buffer + meta_buffer[1]);
@@ -351,30 +339,26 @@ void fusedelementwise_f6680ffb6d13eb69fe8ee704786ebc77ca98cc9c69d1d437564d2413(c
         int d1;
         for (d1 = ((1 > 8) ? (0 / (1 / 8)) : 0); d1 < D1; d1 += ((1 > 8) ? 8 : 1)) {
             const float v9 = v2[d0 + d1*v5];
-            float v10;
+            const float v10 = v3[d0 + d1*v6];
+            float v11;
             {
-                v10 = v9;
+                v11 = v10 + v9;
             }
-            const float v11 = v3[d0 + d1*v6];
             float v12;
             {
-                v12 = v10 + v11;
+                v12 = v8 + v11;
             }
             float v13;
             {
-                v13 = v12 + v8;
+                v13 = v12 > 0 ? v12 : 0;
             }
-            float v14;
-            {
-                v14 = v13 > 0 ? v13 : 0;
-            }
-            v4[d0 + d1*v7] = v14;
+            v4[d0 + d1*v7] = v13;
         }
     }
 }
 
 
-void fusedelementwise_2ce093d93ac0b5d3b6d3b73b17c7bade3312dc25470170fb44f8cc4d(const int * meta_buffer)
+void fusedelementwise_6bd1fd35f142c149f2167ed572e71f80637041012711aaf07fbcfc1b(const int * meta_buffer)
 {
     const float * v1 = (static_buffer + meta_buffer[0]);
     const float * v2 = (static_buffer + meta_buffer[1]);
@@ -390,35 +374,27 @@ void fusedelementwise_2ce093d93ac0b5d3b6d3b73b17c7bade3312dc25470170fb44f8cc4d(c
         const float v8 = v1[d0];
         int d1;
         for (d1 = ((1 > 8) ? (0 / (1 / 8)) : 0); d1 < D1; d1 += ((1 > 8) ? 8 : 1)) {
-            const float v9 = v3[d0 + d1*v6];
-            float v10;
+            const float v9 = v2[d0 + d1*v5];
+            const float v10 = v3[d0 + d1*v6];
+            float v11;
             {
-                v10 = v9;
+                v11 = v9 + v10;
             }
-            const float v11 = v2[d0 + d1*v5];
             float v12;
             {
-                v12 = v11;
+                v12 = v8 + v11;
             }
             float v13;
             {
-                v13 = v12 + v10;
+                v13 = v12 > 0 ? v12 : 0;
             }
-            float v14;
-            {
-                v14 = v13 + v8;
-            }
-            float v15;
-            {
-                v15 = v14 > 0 ? v14 : 0;
-            }
-            v4[d0 + d1*v7] = v15;
+            v4[d0 + d1*v7] = v13;
         }
     }
 }
 
 
-void fusedelementwise_5cd7f15149232801a873ef52623c3d929daedba01df91cf3644dee78(const int * meta_buffer)
+void fusedelementwise_965d8d3ad02bfb2f7e604c0a789c4fea70566ad69fb364c579fef1ea(const int * meta_buffer)
 {
     const float * v1 = (static_buffer + meta_buffer[0]);
     const float * v2 = (static_buffer + meta_buffer[1]);
@@ -434,25 +410,21 @@ void fusedelementwise_5cd7f15149232801a873ef52623c3d929daedba01df91cf3644dee78(c
         const float v8 = v1[d0];
         int d1;
         for (d1 = ((1 > 8) ? (0 / (1 / 8)) : 0); d1 < D1; d1 += ((1 > 8) ? 8 : 1)) {
-            const float v9 = v3[d0 + d1*v6];
-            float v10;
+            const float v9 = v2[d0 + d1*v5];
+            const float v10 = v3[d0 + d1*v6];
+            float v11;
             {
-                v10 = v9;
+                v11 = v9 + v10;
             }
-            const float v11 = v2[d0 + d1*v5];
             float v12;
             {
-                v12 = v10 + v11;
+                v12 = v11 + v8;
             }
             float v13;
             {
-                v13 = v12 + v8;
+                v13 = v12 > 0 ? v12 : 0;
             }
-            float v14;
-            {
-                v14 = v13 > 0 ? v13 : 0;
-            }
-            v4[d0 + d1*v7] = v14;
+            v4[d0 + d1*v7] = v13;
         }
     }
 }
@@ -552,133 +524,133 @@ void softmax_be4c2fae32b9326b0ca891226ac9234de828aecba508a30394d8a57e(const int 
 
 extern "C" void run() {
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_0);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_1);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_2);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_1);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_2);
 maxpooling2d_6f91142d9d2142f2bf5f971bbd42a9177ff9f0a3847ed38923b3b331(meta_buf_3);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_4);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_5);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_6);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_7);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_8);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_9);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_10);
-fusedelementwise_62663821b309f709821c2bed3c8b27237224b92c6870c152eb790fde(meta_buf_11);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_12);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_13);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_4);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_5);
+im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_6);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_7);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_8);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_9);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_10);
+fusedelementwise_ed8163e6334b62b7e237abe4ab67eda0d3bcac5e83594d63f5216a4e(meta_buf_11);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_12);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_13);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_14);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_15);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_16);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_17);
-fusedelementwise_f6680ffb6d13eb69fe8ee704786ebc77ca98cc9c69d1d437564d2413(meta_buf_18);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_19);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_20);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_15);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_16);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_17);
+fusedelementwise_707f5c9b7650163b59a77eb2deeccfc5d671f335a0cdbba556f96548(meta_buf_18);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_19);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_20);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_21);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_22);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_23);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_24);
-fusedelementwise_f6680ffb6d13eb69fe8ee704786ebc77ca98cc9c69d1d437564d2413(meta_buf_25);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_22);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_23);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_24);
+fusedelementwise_707f5c9b7650163b59a77eb2deeccfc5d671f335a0cdbba556f96548(meta_buf_25);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_26);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_27);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_28);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_29);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_30);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_31);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_32);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_33);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_34);
-fusedelementwise_2ce093d93ac0b5d3b6d3b73b17c7bade3312dc25470170fb44f8cc4d(meta_buf_35);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_36);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_37);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_27);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_28);
+im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_29);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_30);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_31);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_32);
+im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_33);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_34);
+fusedelementwise_ed8163e6334b62b7e237abe4ab67eda0d3bcac5e83594d63f5216a4e(meta_buf_35);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_36);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_37);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_38);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_39);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_40);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_41);
-fusedelementwise_f6680ffb6d13eb69fe8ee704786ebc77ca98cc9c69d1d437564d2413(meta_buf_42);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_43);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_44);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_39);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_40);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_41);
+fusedelementwise_707f5c9b7650163b59a77eb2deeccfc5d671f335a0cdbba556f96548(meta_buf_42);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_43);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_44);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_45);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_46);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_47);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_48);
-fusedelementwise_f6680ffb6d13eb69fe8ee704786ebc77ca98cc9c69d1d437564d2413(meta_buf_49);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_50);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_51);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_46);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_47);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_48);
+fusedelementwise_6bd1fd35f142c149f2167ed572e71f80637041012711aaf07fbcfc1b(meta_buf_49);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_50);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_51);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_52);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_53);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_54);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_55);
-fusedelementwise_5cd7f15149232801a873ef52623c3d929daedba01df91cf3644dee78(meta_buf_56);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_53);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_54);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_55);
+fusedelementwise_707f5c9b7650163b59a77eb2deeccfc5d671f335a0cdbba556f96548(meta_buf_56);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_57);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_58);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_59);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_60);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_61);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_62);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_63);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_64);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_65);
-fusedelementwise_2ce093d93ac0b5d3b6d3b73b17c7bade3312dc25470170fb44f8cc4d(meta_buf_66);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_67);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_68);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_58);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_59);
+im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_60);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_61);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_62);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_63);
+im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_64);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_65);
+fusedelementwise_965d8d3ad02bfb2f7e604c0a789c4fea70566ad69fb364c579fef1ea(meta_buf_66);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_67);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_68);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_69);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_70);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_71);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_72);
-fusedelementwise_5cd7f15149232801a873ef52623c3d929daedba01df91cf3644dee78(meta_buf_73);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_74);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_75);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_70);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_71);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_72);
+fusedelementwise_6bd1fd35f142c149f2167ed572e71f80637041012711aaf07fbcfc1b(meta_buf_73);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_74);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_75);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_76);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_77);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_78);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_79);
-fusedelementwise_5cd7f15149232801a873ef52623c3d929daedba01df91cf3644dee78(meta_buf_80);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_81);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_82);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_77);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_78);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_79);
+fusedelementwise_6bd1fd35f142c149f2167ed572e71f80637041012711aaf07fbcfc1b(meta_buf_80);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_81);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_82);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_83);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_84);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_85);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_86);
-fusedelementwise_f6680ffb6d13eb69fe8ee704786ebc77ca98cc9c69d1d437564d2413(meta_buf_87);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_88);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_89);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_84);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_85);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_86);
+fusedelementwise_6bd1fd35f142c149f2167ed572e71f80637041012711aaf07fbcfc1b(meta_buf_87);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_88);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_89);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_90);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_91);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_92);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_93);
-fusedelementwise_f6680ffb6d13eb69fe8ee704786ebc77ca98cc9c69d1d437564d2413(meta_buf_94);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_95);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_96);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_91);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_92);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_93);
+fusedelementwise_707f5c9b7650163b59a77eb2deeccfc5d671f335a0cdbba556f96548(meta_buf_94);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_95);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_96);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_97);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_98);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_99);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_100);
-fusedelementwise_f6680ffb6d13eb69fe8ee704786ebc77ca98cc9c69d1d437564d2413(meta_buf_101);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_98);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_99);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_100);
+fusedelementwise_707f5c9b7650163b59a77eb2deeccfc5d671f335a0cdbba556f96548(meta_buf_101);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_102);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_103);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_104);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_105);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_106);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_107);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_108);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_109);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_110);
-fusedelementwise_62663821b309f709821c2bed3c8b27237224b92c6870c152eb790fde(meta_buf_111);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_112);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_113);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_103);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_104);
+im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_105);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_106);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_107);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_108);
+im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_109);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_110);
+fusedelementwise_ed8163e6334b62b7e237abe4ab67eda0d3bcac5e83594d63f5216a4e(meta_buf_111);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_112);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_113);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_114);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_115);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_116);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_117);
-fusedelementwise_5cd7f15149232801a873ef52623c3d929daedba01df91cf3644dee78(meta_buf_118);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_119);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_120);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_115);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_116);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_117);
+fusedelementwise_6bd1fd35f142c149f2167ed572e71f80637041012711aaf07fbcfc1b(meta_buf_118);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_119);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_120);
 im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_121);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_122);
-fusedelementwise_836cf370bfcccd97dc25f15a4aa6eb8f09c13876333d031c3a5af5c8(meta_buf_123);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_124);
-fusedelementwise_5cd7f15149232801a873ef52623c3d929daedba01df91cf3644dee78(meta_buf_125);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_122);
+fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_123);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_124);
+fusedelementwise_6bd1fd35f142c149f2167ed572e71f80637041012711aaf07fbcfc1b(meta_buf_125);
 averagepooling2d_0dbf99a782fff01a6fc6f857e42168c01fb90520d3d4151eba450a23(meta_buf_126);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_127);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_127);
 elementwiseadd_98450d361d3b8b06ad718e1e961bda61506f2baab3157c18aecbf897(meta_buf_128);
 softmax_be4c2fae32b9326b0ca891226ac9234de828aecba508a30394d8a57e(meta_buf_129);
 
