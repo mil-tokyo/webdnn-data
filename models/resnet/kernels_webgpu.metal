@@ -861,7 +861,47 @@ kernel void fusedelementwise_60691bd700105a85d9bd7bb1730929938746f6a3bd70349e8b5
 }
 
 
-kernel void fusedelementwise_dfca8cdfb7283b20110787b5c83bb4ac1eb5fe613bada845213d5810(device float * static_buffer[[buffer(0)]],
+kernel void fusedelementwise_5c82e133603c34d0e4c2f0f3f305bd6ea1d91d3fe156b5db1177210a(device float * static_buffer[[buffer(0)]],
+                          device float * dynamic_buffer[[buffer(1)]],
+                          const device int * meta_buffer [[buffer(2)]],
+                          uint gid[[thread_position_in_grid]],
+                          uint num_threads[[threads_per_grid]])
+{
+    const device float * v1 = (static_buffer + meta_buffer[0]);
+    const device float * v2 = (static_buffer + meta_buffer[1]);
+    const device float * v3 = (static_buffer + meta_buffer[2]);
+    device float * v4 = (static_buffer + meta_buffer[3]);
+    const int v5 = meta_buffer[4];
+    const int v6 = meta_buffer[5];
+    const int v7 = meta_buffer[6];
+    const int D0 = meta_buffer[7];
+    const int D1 = meta_buffer[8];
+    int d0;
+    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {
+        const float v8 = v1[d0];
+        int d1;
+        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {
+            const float v9 = v2[d0 + d1*v5];
+            const float v10 = v3[d0 + d1*v6];
+            float v11;
+            {
+                v11 = v9 + v10;
+            }
+            float v12;
+            {
+                v12 = v11 + v8;
+            }
+            float v13;
+            {
+                v13 = v12 > 0 ? v12 : 0;
+            }
+            v4[d0 + d1*v7] = v13;
+        }
+    }
+}
+
+
+kernel void fusedelementwise_5703716e2362b4057c156b9ddb34ba3ad7fc49ecf679fb72ef6e9d1c(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint gid[[thread_position_in_grid]],
@@ -889,7 +929,7 @@ kernel void fusedelementwise_dfca8cdfb7283b20110787b5c83bb4ac1eb5fe613bada845213
             }
             float v12;
             {
-                v12 = v11 + v8;
+                v12 = v8 + v11;
             }
             float v13;
             {
@@ -1277,86 +1317,6 @@ kernel void tensordot_b4e1b81aa2ee8bd9941d22d1a00ce977996ec0aec4b34051565f7e60(d
 #undef B_STRIDE_K
 #undef A_STRIDE_M
 #undef B_STRIDE_N
-}
-
-
-kernel void fusedelementwise_5c82e133603c34d0e4c2f0f3f305bd6ea1d91d3fe156b5db1177210a(device float * static_buffer[[buffer(0)]],
-                          device float * dynamic_buffer[[buffer(1)]],
-                          const device int * meta_buffer [[buffer(2)]],
-                          uint gid[[thread_position_in_grid]],
-                          uint num_threads[[threads_per_grid]])
-{
-    const device float * v1 = (static_buffer + meta_buffer[0]);
-    const device float * v2 = (static_buffer + meta_buffer[1]);
-    const device float * v3 = (static_buffer + meta_buffer[2]);
-    device float * v4 = (static_buffer + meta_buffer[3]);
-    const int v5 = meta_buffer[4];
-    const int v6 = meta_buffer[5];
-    const int v7 = meta_buffer[6];
-    const int D0 = meta_buffer[7];
-    const int D1 = meta_buffer[8];
-    int d0;
-    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {
-        const float v8 = v1[d0];
-        int d1;
-        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {
-            const float v9 = v2[d0 + d1*v5];
-            const float v10 = v3[d0 + d1*v6];
-            float v11;
-            {
-                v11 = v9 + v10;
-            }
-            float v12;
-            {
-                v12 = v11 + v8;
-            }
-            float v13;
-            {
-                v13 = v12 > 0 ? v12 : 0;
-            }
-            v4[d0 + d1*v7] = v13;
-        }
-    }
-}
-
-
-kernel void fusedelementwise_5703716e2362b4057c156b9ddb34ba3ad7fc49ecf679fb72ef6e9d1c(device float * static_buffer[[buffer(0)]],
-                          device float * dynamic_buffer[[buffer(1)]],
-                          const device int * meta_buffer [[buffer(2)]],
-                          uint gid[[thread_position_in_grid]],
-                          uint num_threads[[threads_per_grid]])
-{
-    const device float * v1 = (static_buffer + meta_buffer[0]);
-    const device float * v2 = (static_buffer + meta_buffer[1]);
-    const device float * v3 = (static_buffer + meta_buffer[2]);
-    device float * v4 = (static_buffer + meta_buffer[3]);
-    const int v5 = meta_buffer[4];
-    const int v6 = meta_buffer[5];
-    const int v7 = meta_buffer[6];
-    const int D0 = meta_buffer[7];
-    const int D1 = meta_buffer[8];
-    int d0;
-    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {
-        const float v8 = v1[d0];
-        int d1;
-        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {
-            const float v9 = v2[d0 + d1*v5];
-            const float v10 = v3[d0 + d1*v6];
-            float v11;
-            {
-                v11 = v10 + v9;
-            }
-            float v12;
-            {
-                v12 = v8 + v11;
-            }
-            float v13;
-            {
-                v13 = v12 > 0 ? v12 : 0;
-            }
-            v4[d0 + d1*v7] = v13;
-        }
-    }
 }
 
 
