@@ -1,6 +1,6 @@
 {
-  "converted_at": 1511890319,
-  "kernel_source": "\n#include <metal_stdlib>\nusing namespace metal;\n\n#define OPTIMIZE 1\n\nkernel void transpose_1a0fbadea0475062956fc679399ce2f40129cb877aec049982efb309(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    device float * v2 = (static_buffer + meta_buffer[1]);\n    const int v3 = meta_buffer[2];\n    const int v4 = meta_buffer[3];\n    const int D0 = meta_buffer[4];\n    const int D1 = meta_buffer[5];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v5 = v1[d0*v3 + d1];\n            float v6;\n            {\n                v6 = v5;\n            }\n            v2[d0 + d1*v4] = v6;\n        }\n    }\n}\n\n\nkernel void im2col_9b539f2f74232353e897aa9134c69cfa1ee49d2b6fa3daf025ab98c3(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float *im = (static_buffer + meta_buffer[0]);\n    device float *col = (static_buffer + meta_buffer[1]);\n\n    const int N = meta_buffer[2];\n    const int C1 = meta_buffer[3];\n    const int H1 = meta_buffer[4];\n    const int W1 = meta_buffer[5];\n    const int H2 = meta_buffer[6];\n    const int W2 = meta_buffer[7];\n    const int KH = meta_buffer[8];\n    const int KW = meta_buffer[9];\n    const int DH = meta_buffer[10];\n    const int DW = meta_buffer[11];\n    const int SH = meta_buffer[12];\n    const int SW = meta_buffer[13];\n    const int PH = meta_buffer[14];\n    const int PW = meta_buffer[15];\n\n    for (int gid = index; gid < N*H2*W2*KH*KW*C1; gid += num_threads) {\n        const int w2 = gid % W2;\n        const int h2 = gid / W2 % H2;\n        const int  n = gid / W2 / H2 % N;\n        const int c1 = gid / W2 / H2 / N % C1;\n        const int kw = gid / W2 / H2 / N / C1 % KW;\n        const int kh = gid / W2 / H2 / N / C1 / KW;\n\n        const int h1 = h2 * SH - PH + kh * DH;\n        const int w1 = w2 * SW - PW + kw * DW;\n\n        col[gid] = (h1 < 0 || h1 >= H1 || w1 < 0 || w1 >= W1) ? 0 : im[((n*H1+h1)*W1+w1)*C1+c1];\n    }\n}\n\n\nkernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_index_in_threadgroup]],\n                          uint2 group_position[[threadgroup_position_in_grid]])\n{\n#define M_DIVIDABLE_BY_64 1\n#define N_DIVIDABLE_BY_64 0\n#define K_DIVIDABLE_BY_8 0\n\n#define A_STRIDE_K M\n#define A_STRIDE_M 1\n\n#define B_STRIDE_K N\n#define B_STRIDE_N 1\n\n#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64 && OPTIMIZE\n    const device float4 *load_target4 = (index & 32) \n        ? (const device float4 *)((static_buffer + meta_buffer[1])) \n        : (const device float4 *)((static_buffer + meta_buffer[0]));\n#else\n    const device float *load_target = (index & 32) \n        ? ((static_buffer + meta_buffer[1])) \n        : ((static_buffer + meta_buffer[0]));\n#endif\n\n    const int M = meta_buffer[3];\n    const int N = meta_buffer[4];\n\n    const int K = meta_buffer[5];\n\n    threadgroup float4 shared4[32 * 8 * 2];\n\n    const int stride_k = (index & 32) ? B_STRIDE_K : A_STRIDE_K;\n    const int stride_mn = (index & 32) ? B_STRIDE_N : A_STRIDE_M;\n\n    const int m_offset = index & 7;\n    const int n_offset = index >> 3;\n\n    const int mn_load_offset = ((index & 32) ? group_position.y : group_position.x) * 64 + (index & 15) * 4;\n    const int k_load_offset = ((index & 16) ? 1 : 0);\n\n    int track0 = mn_load_offset * stride_mn + (k_load_offset + 0) * stride_k;\n    int track2 = track0 + 2 * stride_k;\n    int track4 = track0 + 4 * stride_k;\n    int track6 = track0 + 6 * stride_k;\n\n#if !OPTIMIZE || !M_DIVIDABLE_BY_64 || !N_DIVIDABLE_BY_64\n    const int max_MN = (index & 32) ? N : M;\n#endif\n\n    int shared_offset4 = ((index & 32) ? 16 : 0) + k_load_offset * 32 + (index & 15);\n    int read_A_offset4 = m_offset * 2;\n    int read_B_offset4 = n_offset * 2 + 16;\n\n    float4 result[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};\n    int k = 0;\n\n    while (k < K)\n    {\n        {\n#if OPTIMIZE && K_DIVIDABLE_BY_8\n    #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64\n        #if OPTIMIZE\n            shared4[shared_offset4 + 32 * 0] = load_target4[track0 >> 2];\n            shared4[shared_offset4 + 32 * 2] = load_target4[track2 >> 2];\n            shared4[shared_offset4 + 32 * 4] = load_target4[track4 >> 2];\n            shared4[shared_offset4 + 32 * 6] = load_target4[track6 >> 2];\n        #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                load_target[track0 + stride_mn * 0],\n                load_target[track0 + stride_mn * 1],\n                load_target[track0 + stride_mn * 2],\n                load_target[track0 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 2] = float4(\n                load_target[track2 + stride_mn * 0],\n                load_target[track2 + stride_mn * 1],\n                load_target[track2 + stride_mn * 2],\n                load_target[track2 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 4] = float4(\n                load_target[track4 + stride_mn * 0],\n                load_target[track4 + stride_mn * 1],\n                load_target[track4 + stride_mn * 2],\n                load_target[track4 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 6] = float4(\n                load_target[track6 + stride_mn * 0],\n                load_target[track6 + stride_mn * 1],\n                load_target[track6 + stride_mn * 2],\n                load_target[track6 + stride_mn * 3]\n            ); \n        #endif\n    #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 2] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 4] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 6] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n    #endif\n\n            k += 8;\n#else\n    #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n            k += 2;\n    #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n            k += 2;\n    #endif\n#endif\n        }\n\n        threadgroup_barrier(mem_flags::mem_threadgroup);\n\n        {\n            for (int k_sub = 0; k_sub < 8; k_sub++)\n            {\n                float4 a00 = shared4[32 * k_sub + read_A_offset4 + 0];\n                float4 a01 = shared4[32 * k_sub + read_A_offset4 + 1];\n                float4 b00 = shared4[32 * k_sub + read_B_offset4 + 0];\n                float4 b01 = shared4[32 * k_sub + read_B_offset4 + 1];\n\n                result[4][0]  += b00[0] * a00[2];\n                result[4][1]  += b00[1] * a00[2];\n                result[0][1]  += b00[1] * a00[0];\n                result[0][0]  += b00[0] * a00[0];\n                result[6][0]  += b00[0] * a00[3];\n                result[6][1]  += b00[1] * a00[3];\n                result[2][1]  += b00[1] * a00[1];\n                result[2][0]  += b00[0] * a00[1];\n                result[12][0] += b00[0] * a01[2];\n                result[12][1] += b00[1] * a01[2];\n                result[8][1]  += b00[1] * a01[0];\n                result[8][0]  += b00[0] * a01[0];\n                result[14][0] += b00[0] * a01[3];\n                result[14][1] += b00[1] * a01[3];\n                result[10][1] += b00[1] * a01[1];\n                result[10][0] += b00[0] * a01[1];\n\n                result[14][2] += b00[2] * a01[3];\n                result[14][3] += b00[3] * a01[3];\n                result[10][3] += b00[3] * a01[1];\n                result[10][2] += b00[2] * a01[1];\n                result[12][2] += b00[2] * a01[2];\n                result[12][3] += b00[3] * a01[2];\n                result[8][3]  += b00[3] * a01[0];\n                result[8][2]  += b00[2] * a01[0];\n                result[6][2]  += b00[2] * a00[3];\n                result[6][3]  += b00[3] * a00[3];\n                result[2][3]  += b00[3] * a00[1];\n                result[2][2]  += b00[2] * a00[1];\n                result[4][2]  += b00[2] * a00[2];\n                result[4][3]  += b00[3] * a00[2];\n                result[0][3]  += b00[3] * a00[0];\n                result[0][2]  += b00[2] * a00[0];\n\n                result[5][0]  += b01[0] * a00[2];\n                result[5][1]  += b01[1] * a00[2];\n                result[1][1]  += b01[1] * a00[0];\n                result[1][0]  += b01[0] * a00[0];\n                result[7][0]  += b01[0] * a00[3];\n                result[7][1]  += b01[1] * a00[3];\n                result[3][1]  += b01[1] * a00[1];\n                result[3][0]  += b01[0] * a00[1];\n                result[13][0] += b01[0] * a01[2];\n                result[13][1] += b01[1] * a01[2];\n                result[9][1]  += b01[1] * a01[0];\n                result[9][0]  += b01[0] * a01[0];\n                result[15][0] += b01[0] * a01[3];\n                result[15][1] += b01[1] * a01[3];\n                result[11][1] += b01[1] * a01[1];\n                result[11][0] += b01[0] * a01[1];\n\n                result[15][2] += b01[2] * a01[3];\n                result[15][3] += b01[3] * a01[3];\n                result[11][3] += b01[3] * a01[1];\n                result[11][2] += b01[2] * a01[1];\n                result[13][2] += b01[2] * a01[2];\n                result[13][3] += b01[3] * a01[2];\n                result[9][3]  += b01[3] * a01[0];\n                result[9][2]  += b01[2] * a01[0];\n                result[7][2]  += b01[2] * a00[3];\n                result[7][3]  += b01[3] * a00[3];\n                result[3][3]  += b01[3] * a00[1];\n                result[3][2]  += b01[2] * a00[1];\n                result[5][2]  += b01[2] * a00[2];\n                result[5][3]  += b01[3] * a00[2];\n                result[1][3]  += b01[3] * a00[0];\n                result[1][2]  += b01[2] * a00[0];\n            }\n        }\n\n        shared_offset4 ^= 32 * 8;\n        read_A_offset4 ^= 32 * 8;\n        read_B_offset4 ^= 32 * 8;\n        track0 += stride_k * 8;\n        track2 += stride_k * 8;\n        track4 += stride_k * 8;\n        track6 += stride_k * 8;\n    }\n\n    {\n    \n#if OPTIMIZE && N_DIVIDABLE_BY_64\n        device float4 *C4 = (device float4 *)((static_buffer + meta_buffer[2]));\n        const int N4 = N >> 2;\n        int m = group_position.x * 64 + m_offset * 8;\n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n\n    #if !M_DIVIDABLE_BY_64\n            if (m >= M) continue;\n    #endif\n\n            const int n = group_position.y * 16 + n_offset * 2;\n            float4 result0 = result[m_sub * 2 + 0];\n            float4 result1 = result[m_sub * 2 + 1];\n\n            C4[m * N4 + n + 0] = result0;\n            C4[m * N4 + n + 1] = result1;\n            \n            m++;\n        }\n#else\n        device float *C = (static_buffer + meta_buffer[2]);\n        int m = group_position.x * 64 + m_offset * 8;\n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n            int n = group_position.y * 64 + n_offset * 8;\n\n            for (int n_sub1 = 0; n_sub1 < 2; n_sub1++)\n            {\n                for (int n_sub2 = 0; n_sub2 < 4; n_sub2++)\n                {\n\n    #if OPTIMIZE && M_DIVIDABLE_BY_64\n                    (         n < N) ? (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : 0;\n    #else\n                    (m < M && n < N) ? (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : 0;\n    #endif\n                    n++;\n                }\n            }\n            \n            m++;\n        }\n#endif\n\n    }\n\n#undef M_DIVIDABLE_BY_64\n#undef N_DIVIDABLE_BY_64\n#undef K_DIVIDABLE_BY_8\n#undef A_STRIDE_K\n#undef B_STRIDE_K\n#undef A_STRIDE_M\n#undef B_STRIDE_N\n}\n\n\nkernel void fusedelementwise_a2a930f4af84e50dafd992d1d0ad7d711a096597302d47acf9a735ed(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    const device float * v4 = (static_buffer + meta_buffer[3]);\n    device float * v5 = (static_buffer + meta_buffer[4]);\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int D0 = meta_buffer[7];\n    const int D1 = meta_buffer[8];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v8 = v1[d0];\n        const float v9 = v2[d0];\n        const float v10 = v3[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v11 = v4[d0 + d1*v6];\n            float v12;\n            {\n                v12 = v11 + v9;\n            }\n            float v13;\n            {\n                v13 = v12 < 0.0 ? (exp(v12)-1) : v12;\n            }\n            float v14;\n            {\n                v14 = v13 * v8;\n            }\n            float v15;\n            {\n                v15 = v14 + v10;\n            }\n            v5[d0 + d1*v7] = v15;\n        }\n    }\n}\n\n\nkernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_index_in_threadgroup]],\n                          uint2 group_position[[threadgroup_position_in_grid]])\n{\n#define M_DIVIDABLE_BY_64 1\n#define N_DIVIDABLE_BY_64 1\n#define K_DIVIDABLE_BY_8 1\n\n#define A_STRIDE_K M\n#define A_STRIDE_M 1\n\n#define B_STRIDE_K N\n#define B_STRIDE_N 1\n\n#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64 && OPTIMIZE\n    const device float4 *load_target4 = (index & 32) \n        ? (const device float4 *)((static_buffer + meta_buffer[1])) \n        : (const device float4 *)((static_buffer + meta_buffer[0]));\n#else\n    const device float *load_target = (index & 32) \n        ? ((static_buffer + meta_buffer[1])) \n        : ((static_buffer + meta_buffer[0]));\n#endif\n\n    const int M = meta_buffer[3];\n    const int N = meta_buffer[4];\n\n    const int K = meta_buffer[5];\n\n    threadgroup float4 shared4[32 * 8 * 2];\n\n    const int stride_k = (index & 32) ? B_STRIDE_K : A_STRIDE_K;\n    const int stride_mn = (index & 32) ? B_STRIDE_N : A_STRIDE_M;\n\n    const int m_offset = index & 7;\n    const int n_offset = index >> 3;\n\n    const int mn_load_offset = ((index & 32) ? group_position.y : group_position.x) * 64 + (index & 15) * 4;\n    const int k_load_offset = ((index & 16) ? 1 : 0);\n\n    int track0 = mn_load_offset * stride_mn + (k_load_offset + 0) * stride_k;\n    int track2 = track0 + 2 * stride_k;\n    int track4 = track0 + 4 * stride_k;\n    int track6 = track0 + 6 * stride_k;\n\n#if !OPTIMIZE || !M_DIVIDABLE_BY_64 || !N_DIVIDABLE_BY_64\n    const int max_MN = (index & 32) ? N : M;\n#endif\n\n    int shared_offset4 = ((index & 32) ? 16 : 0) + k_load_offset * 32 + (index & 15);\n    int read_A_offset4 = m_offset * 2;\n    int read_B_offset4 = n_offset * 2 + 16;\n\n    float4 result[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};\n    int k = 0;\n\n    while (k < K)\n    {\n        {\n#if OPTIMIZE && K_DIVIDABLE_BY_8\n    #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64\n        #if OPTIMIZE\n            shared4[shared_offset4 + 32 * 0] = load_target4[track0 >> 2];\n            shared4[shared_offset4 + 32 * 2] = load_target4[track2 >> 2];\n            shared4[shared_offset4 + 32 * 4] = load_target4[track4 >> 2];\n            shared4[shared_offset4 + 32 * 6] = load_target4[track6 >> 2];\n        #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                load_target[track0 + stride_mn * 0],\n                load_target[track0 + stride_mn * 1],\n                load_target[track0 + stride_mn * 2],\n                load_target[track0 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 2] = float4(\n                load_target[track2 + stride_mn * 0],\n                load_target[track2 + stride_mn * 1],\n                load_target[track2 + stride_mn * 2],\n                load_target[track2 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 4] = float4(\n                load_target[track4 + stride_mn * 0],\n                load_target[track4 + stride_mn * 1],\n                load_target[track4 + stride_mn * 2],\n                load_target[track4 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 6] = float4(\n                load_target[track6 + stride_mn * 0],\n                load_target[track6 + stride_mn * 1],\n                load_target[track6 + stride_mn * 2],\n                load_target[track6 + stride_mn * 3]\n            ); \n        #endif\n    #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 2] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 4] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 6] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n    #endif\n\n            k += 8;\n#else\n    #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n            k += 2;\n    #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n            k += 2;\n    #endif\n#endif\n        }\n\n        threadgroup_barrier(mem_flags::mem_threadgroup);\n\n        {\n            for (int k_sub = 0; k_sub < 8; k_sub++)\n            {\n                float4 a00 = shared4[32 * k_sub + read_A_offset4 + 0];\n                float4 a01 = shared4[32 * k_sub + read_A_offset4 + 1];\n                float4 b00 = shared4[32 * k_sub + read_B_offset4 + 0];\n                float4 b01 = shared4[32 * k_sub + read_B_offset4 + 1];\n\n                result[4][0]  += b00[0] * a00[2];\n                result[4][1]  += b00[1] * a00[2];\n                result[0][1]  += b00[1] * a00[0];\n                result[0][0]  += b00[0] * a00[0];\n                result[6][0]  += b00[0] * a00[3];\n                result[6][1]  += b00[1] * a00[3];\n                result[2][1]  += b00[1] * a00[1];\n                result[2][0]  += b00[0] * a00[1];\n                result[12][0] += b00[0] * a01[2];\n                result[12][1] += b00[1] * a01[2];\n                result[8][1]  += b00[1] * a01[0];\n                result[8][0]  += b00[0] * a01[0];\n                result[14][0] += b00[0] * a01[3];\n                result[14][1] += b00[1] * a01[3];\n                result[10][1] += b00[1] * a01[1];\n                result[10][0] += b00[0] * a01[1];\n\n                result[14][2] += b00[2] * a01[3];\n                result[14][3] += b00[3] * a01[3];\n                result[10][3] += b00[3] * a01[1];\n                result[10][2] += b00[2] * a01[1];\n                result[12][2] += b00[2] * a01[2];\n                result[12][3] += b00[3] * a01[2];\n                result[8][3]  += b00[3] * a01[0];\n                result[8][2]  += b00[2] * a01[0];\n                result[6][2]  += b00[2] * a00[3];\n                result[6][3]  += b00[3] * a00[3];\n                result[2][3]  += b00[3] * a00[1];\n                result[2][2]  += b00[2] * a00[1];\n                result[4][2]  += b00[2] * a00[2];\n                result[4][3]  += b00[3] * a00[2];\n                result[0][3]  += b00[3] * a00[0];\n                result[0][2]  += b00[2] * a00[0];\n\n                result[5][0]  += b01[0] * a00[2];\n                result[5][1]  += b01[1] * a00[2];\n                result[1][1]  += b01[1] * a00[0];\n                result[1][0]  += b01[0] * a00[0];\n                result[7][0]  += b01[0] * a00[3];\n                result[7][1]  += b01[1] * a00[3];\n                result[3][1]  += b01[1] * a00[1];\n                result[3][0]  += b01[0] * a00[1];\n                result[13][0] += b01[0] * a01[2];\n                result[13][1] += b01[1] * a01[2];\n                result[9][1]  += b01[1] * a01[0];\n                result[9][0]  += b01[0] * a01[0];\n                result[15][0] += b01[0] * a01[3];\n                result[15][1] += b01[1] * a01[3];\n                result[11][1] += b01[1] * a01[1];\n                result[11][0] += b01[0] * a01[1];\n\n                result[15][2] += b01[2] * a01[3];\n                result[15][3] += b01[3] * a01[3];\n                result[11][3] += b01[3] * a01[1];\n                result[11][2] += b01[2] * a01[1];\n                result[13][2] += b01[2] * a01[2];\n                result[13][3] += b01[3] * a01[2];\n                result[9][3]  += b01[3] * a01[0];\n                result[9][2]  += b01[2] * a01[0];\n                result[7][2]  += b01[2] * a00[3];\n                result[7][3]  += b01[3] * a00[3];\n                result[3][3]  += b01[3] * a00[1];\n                result[3][2]  += b01[2] * a00[1];\n                result[5][2]  += b01[2] * a00[2];\n                result[5][3]  += b01[3] * a00[2];\n                result[1][3]  += b01[3] * a00[0];\n                result[1][2]  += b01[2] * a00[0];\n            }\n        }\n\n        shared_offset4 ^= 32 * 8;\n        read_A_offset4 ^= 32 * 8;\n        read_B_offset4 ^= 32 * 8;\n        track0 += stride_k * 8;\n        track2 += stride_k * 8;\n        track4 += stride_k * 8;\n        track6 += stride_k * 8;\n    }\n\n    {\n    \n#if OPTIMIZE && N_DIVIDABLE_BY_64\n        device float4 *C4 = (device float4 *)((static_buffer + meta_buffer[2]));\n        const int N4 = N >> 2;\n        int m = group_position.x * 64 + m_offset * 8;\n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n\n    #if !M_DIVIDABLE_BY_64\n            if (m >= M) continue;\n    #endif\n\n            const int n = group_position.y * 16 + n_offset * 2;\n            float4 result0 = result[m_sub * 2 + 0];\n            float4 result1 = result[m_sub * 2 + 1];\n\n            C4[m * N4 + n + 0] = result0;\n            C4[m * N4 + n + 1] = result1;\n            \n            m++;\n        }\n#else\n        device float *C = (static_buffer + meta_buffer[2]);\n        int m = group_position.x * 64 + m_offset * 8;\n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n            int n = group_position.y * 64 + n_offset * 8;\n\n            for (int n_sub1 = 0; n_sub1 < 2; n_sub1++)\n            {\n                for (int n_sub2 = 0; n_sub2 < 4; n_sub2++)\n                {\n\n    #if OPTIMIZE && M_DIVIDABLE_BY_64\n                    (         n < N) ? (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : 0;\n    #else\n                    (m < M && n < N) ? (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : 0;\n    #endif\n                    n++;\n                }\n            }\n            \n            m++;\n        }\n#endif\n\n    }\n\n#undef M_DIVIDABLE_BY_64\n#undef N_DIVIDABLE_BY_64\n#undef K_DIVIDABLE_BY_8\n#undef A_STRIDE_K\n#undef B_STRIDE_K\n#undef A_STRIDE_M\n#undef B_STRIDE_N\n}\n\n\nkernel void fusedelementwise_855ad3208167b85cd53ecff129502284363603cb8bd77639f64c5c88(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    const device float * v4 = (static_buffer + meta_buffer[3]);\n    device float * v5 = (static_buffer + meta_buffer[4]);\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int D0 = meta_buffer[7];\n    const int D1 = meta_buffer[8];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v8 = v1[d0];\n        const float v9 = v2[d0];\n        const float v10 = v3[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v11 = v4[d0 + d1*v6];\n            float v12;\n            {\n                v12 = v11 + v10;\n            }\n            float v13;\n            {\n                v13 = v12 < 0.0 ? (exp(v12)-1) : v12;\n            }\n            float v14;\n            {\n                v14 = v13 * v9;\n            }\n            float v15;\n            {\n                v15 = v14 + v8;\n            }\n            v5[d0 + d1*v7] = v15;\n        }\n    }\n}\n\n\nkernel void fusedelementwise_af13236dc2a3b1e840f85fbb0a525534ef08be1bc7155583411cf2a0(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    const device float * v4 = (static_buffer + meta_buffer[3]);\n    device float * v5 = (static_buffer + meta_buffer[4]);\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int D0 = meta_buffer[7];\n    const int D1 = meta_buffer[8];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v8 = v1[d0];\n        const float v9 = v2[d0];\n        const float v10 = v3[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v11 = v4[d0 + d1*v6];\n            float v12;\n            {\n                v12 = v11 + v9;\n            }\n            float v13;\n            {\n                v13 = v12 < 0.0 ? (exp(v12)-1) : v12;\n            }\n            float v14;\n            {\n                v14 = v13 * v8;\n            }\n            float v15;\n            {\n                v15 = v14 + v10;\n            }\n            v5[d0*v7 + d1] = v15;\n        }\n    }\n}\n\n\nkernel void fusedelementwise_3cfde4edccf2d157c64e8a5e39f8ee66e10ec80af20ca9d5ae076bca(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    device float * v3 = (static_buffer + meta_buffer[2]);\n    const int v4 = meta_buffer[3];\n    const int v5 = meta_buffer[4];\n    const int D0 = meta_buffer[5];\n    const int D1 = meta_buffer[6];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v6 = v1[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v7 = v2[d0 + d1*v4];\n            float v8;\n            {\n                v8 = v7 + v6;\n            }\n            float v9;\n            {\n                v9 = v8 > 0 ? v8 : 0;\n            }\n            v3[d0 + d1*v5] = v9;\n        }\n    }\n}\n\n\nkernel void fusedelementwise_7560b5d8803146c39c48e815ea3893668f38d9cc141ac1762de925f0(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    device float * v4 = (static_buffer + meta_buffer[3]);\n    const int v5 = meta_buffer[4];\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int D0 = meta_buffer[7];\n    const int D1 = meta_buffer[8];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v8 = v1[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v9 = v2[d0*v5 + d1];\n            const float v10 = v3[d0 + d1*v6];\n            float v11;\n            {\n                v11 = v10 + v9;\n            }\n            float v12;\n            {\n                v12 = v8 + v11;\n            }\n            v4[d0*v7 + d1] = v12;\n        }\n    }\n}\n\n\nkernel void col2im_8a1be4f38d62554df5813223c19078e9dec475d3123d422dd2cbee28(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float *col = (static_buffer + meta_buffer[1]);\n    device float *im = (static_buffer + meta_buffer[0]);\n\n    const int N = meta_buffer[2];\n    const int C1 = meta_buffer[5];\n    const int H1 = meta_buffer[6];\n    const int W1 = meta_buffer[7];\n    const int H2 = meta_buffer[3];\n    const int W2 = meta_buffer[4];\n    const int KH = meta_buffer[8];\n    const int KW = meta_buffer[9];\n    const int SH = meta_buffer[10];\n    const int SW = meta_buffer[11];\n    const int PH = meta_buffer[12];\n    const int PW = meta_buffer[13];\n\n    for (int gid = index; gid < N*H1*W1*C1; gid += num_threads) {\n        const int c1 = gid % C1;\n        const int w1 = gid / C1 % W1;\n        const int h1 = gid / C1 / W1 % H1;\n        const int n  = gid / C1 / W1 / H1;\n\n        float sum = 0;\n        \n        for (int kh = 0; kh < KH; kh++) {\n            const int h2 = (h1 + PH - kh) / SH;\n            if ((h1 + PH - kh) % SH != 0 || h2 < 0 || h2 >= H2) continue;\n\n            for (int kw = 0; kw < KW; kw++) {\n                const int w2 = (w1 + PW - kw) / SW;\n                if ((w1 + PW - kw) % SW != 0 || w2 < 0 || w2 >= W2) continue;\n                \n                sum += col[((((n * H2 + h2) * W2 + w2) * KH + kh) * KW + kw) * C1 + c1];\n            }\n        }\n        \n        im[gid] = sum; \n    }\n}\n\n\nkernel void fusedelementwise_43b459b6893088b1c84e13bcc262d1474635cb2f332eb47df57e145b(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    const device float * v4 = (static_buffer + meta_buffer[3]);\n    device float * v5 = (static_buffer + meta_buffer[4]);\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int D0 = meta_buffer[7];\n    const int D1 = meta_buffer[8];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v8 = v1[d0];\n        const float v9 = v2[d0];\n        const float v10 = v3[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v11 = v4[d0 + d1*v6];\n            float v12;\n            {\n                v12 = v11 + v10;\n            }\n            float v13;\n            {\n                v13 = v12 < 0.0 ? (exp(v12)-1) : v12;\n            }\n            float v14;\n            {\n                v14 = v13 * v9;\n            }\n            float v15;\n            {\n                v15 = v14 + v8;\n            }\n            v5[d0*v7 + d1] = v15;\n        }\n    }\n}\n\n\nkernel void fusedelementwise_4c564a4f36f688401869a753cb6f3b81c1822d78b9977a72583ef390(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    const device float * v4 = (static_buffer + meta_buffer[3]);\n    device float * v5 = (static_buffer + meta_buffer[4]);\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int D0 = meta_buffer[7];\n    const int D1 = meta_buffer[8];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v8 = v1[d0];\n        const float v9 = v2[d0];\n        const float v10 = v3[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v11 = v4[d0 + d1*v6];\n            float v12;\n            {\n                v12 = v11 + v10;\n            }\n            float v13;\n            {\n                v13 = v12 < 0.0 ? (exp(v12)-1) : v12;\n            }\n            float v14;\n            {\n                v14 = v13 * v8;\n            }\n            float v15;\n            {\n                v15 = v14 + v9;\n            }\n            v5[d0*v7 + d1] = v15;\n        }\n    }\n}\n\n\nkernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_index_in_threadgroup]],\n                          uint2 group_position[[threadgroup_position_in_grid]])\n{\n#define M_DIVIDABLE_BY_64 1\n#define N_DIVIDABLE_BY_64 0\n#define K_DIVIDABLE_BY_8 1\n\n#define A_STRIDE_K M\n#define A_STRIDE_M 1\n\n#define B_STRIDE_K N\n#define B_STRIDE_N 1\n\n#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64 && OPTIMIZE\n    const device float4 *load_target4 = (index & 32) \n        ? (const device float4 *)((static_buffer + meta_buffer[1])) \n        : (const device float4 *)((static_buffer + meta_buffer[0]));\n#else\n    const device float *load_target = (index & 32) \n        ? ((static_buffer + meta_buffer[1])) \n        : ((static_buffer + meta_buffer[0]));\n#endif\n\n    const int M = meta_buffer[3];\n    const int N = meta_buffer[4];\n\n    const int K = meta_buffer[5];\n\n    threadgroup float4 shared4[32 * 8 * 2];\n\n    const int stride_k = (index & 32) ? B_STRIDE_K : A_STRIDE_K;\n    const int stride_mn = (index & 32) ? B_STRIDE_N : A_STRIDE_M;\n\n    const int m_offset = index & 7;\n    const int n_offset = index >> 3;\n\n    const int mn_load_offset = ((index & 32) ? group_position.y : group_position.x) * 64 + (index & 15) * 4;\n    const int k_load_offset = ((index & 16) ? 1 : 0);\n\n    int track0 = mn_load_offset * stride_mn + (k_load_offset + 0) * stride_k;\n    int track2 = track0 + 2 * stride_k;\n    int track4 = track0 + 4 * stride_k;\n    int track6 = track0 + 6 * stride_k;\n\n#if !OPTIMIZE || !M_DIVIDABLE_BY_64 || !N_DIVIDABLE_BY_64\n    const int max_MN = (index & 32) ? N : M;\n#endif\n\n    int shared_offset4 = ((index & 32) ? 16 : 0) + k_load_offset * 32 + (index & 15);\n    int read_A_offset4 = m_offset * 2;\n    int read_B_offset4 = n_offset * 2 + 16;\n\n    float4 result[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};\n    int k = 0;\n\n    while (k < K)\n    {\n        {\n#if OPTIMIZE && K_DIVIDABLE_BY_8\n    #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64\n        #if OPTIMIZE\n            shared4[shared_offset4 + 32 * 0] = load_target4[track0 >> 2];\n            shared4[shared_offset4 + 32 * 2] = load_target4[track2 >> 2];\n            shared4[shared_offset4 + 32 * 4] = load_target4[track4 >> 2];\n            shared4[shared_offset4 + 32 * 6] = load_target4[track6 >> 2];\n        #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                load_target[track0 + stride_mn * 0],\n                load_target[track0 + stride_mn * 1],\n                load_target[track0 + stride_mn * 2],\n                load_target[track0 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 2] = float4(\n                load_target[track2 + stride_mn * 0],\n                load_target[track2 + stride_mn * 1],\n                load_target[track2 + stride_mn * 2],\n                load_target[track2 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 4] = float4(\n                load_target[track4 + stride_mn * 0],\n                load_target[track4 + stride_mn * 1],\n                load_target[track4 + stride_mn * 2],\n                load_target[track4 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 6] = float4(\n                load_target[track6 + stride_mn * 0],\n                load_target[track6 + stride_mn * 1],\n                load_target[track6 + stride_mn * 2],\n                load_target[track6 + stride_mn * 3]\n            ); \n        #endif\n    #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 2] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 4] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            shared4[shared_offset4 + 32 * 6] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n    #endif\n\n            k += 8;\n#else\n    #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n            k += 2;\n    #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            ); \n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            ); \n            k += 2;\n    #endif\n#endif\n        }\n\n        threadgroup_barrier(mem_flags::mem_threadgroup);\n\n        {\n            for (int k_sub = 0; k_sub < 8; k_sub++)\n            {\n                float4 a00 = shared4[32 * k_sub + read_A_offset4 + 0];\n                float4 a01 = shared4[32 * k_sub + read_A_offset4 + 1];\n                float4 b00 = shared4[32 * k_sub + read_B_offset4 + 0];\n                float4 b01 = shared4[32 * k_sub + read_B_offset4 + 1];\n\n                result[4][0]  += b00[0] * a00[2];\n                result[4][1]  += b00[1] * a00[2];\n                result[0][1]  += b00[1] * a00[0];\n                result[0][0]  += b00[0] * a00[0];\n                result[6][0]  += b00[0] * a00[3];\n                result[6][1]  += b00[1] * a00[3];\n                result[2][1]  += b00[1] * a00[1];\n                result[2][0]  += b00[0] * a00[1];\n                result[12][0] += b00[0] * a01[2];\n                result[12][1] += b00[1] * a01[2];\n                result[8][1]  += b00[1] * a01[0];\n                result[8][0]  += b00[0] * a01[0];\n                result[14][0] += b00[0] * a01[3];\n                result[14][1] += b00[1] * a01[3];\n                result[10][1] += b00[1] * a01[1];\n                result[10][0] += b00[0] * a01[1];\n\n                result[14][2] += b00[2] * a01[3];\n                result[14][3] += b00[3] * a01[3];\n                result[10][3] += b00[3] * a01[1];\n                result[10][2] += b00[2] * a01[1];\n                result[12][2] += b00[2] * a01[2];\n                result[12][3] += b00[3] * a01[2];\n                result[8][3]  += b00[3] * a01[0];\n                result[8][2]  += b00[2] * a01[0];\n                result[6][2]  += b00[2] * a00[3];\n                result[6][3]  += b00[3] * a00[3];\n                result[2][3]  += b00[3] * a00[1];\n                result[2][2]  += b00[2] * a00[1];\n                result[4][2]  += b00[2] * a00[2];\n                result[4][3]  += b00[3] * a00[2];\n                result[0][3]  += b00[3] * a00[0];\n                result[0][2]  += b00[2] * a00[0];\n\n                result[5][0]  += b01[0] * a00[2];\n                result[5][1]  += b01[1] * a00[2];\n                result[1][1]  += b01[1] * a00[0];\n                result[1][0]  += b01[0] * a00[0];\n                result[7][0]  += b01[0] * a00[3];\n                result[7][1]  += b01[1] * a00[3];\n                result[3][1]  += b01[1] * a00[1];\n                result[3][0]  += b01[0] * a00[1];\n                result[13][0] += b01[0] * a01[2];\n                result[13][1] += b01[1] * a01[2];\n                result[9][1]  += b01[1] * a01[0];\n                result[9][0]  += b01[0] * a01[0];\n                result[15][0] += b01[0] * a01[3];\n                result[15][1] += b01[1] * a01[3];\n                result[11][1] += b01[1] * a01[1];\n                result[11][0] += b01[0] * a01[1];\n\n                result[15][2] += b01[2] * a01[3];\n                result[15][3] += b01[3] * a01[3];\n                result[11][3] += b01[3] * a01[1];\n                result[11][2] += b01[2] * a01[1];\n                result[13][2] += b01[2] * a01[2];\n                result[13][3] += b01[3] * a01[2];\n                result[9][3]  += b01[3] * a01[0];\n                result[9][2]  += b01[2] * a01[0];\n                result[7][2]  += b01[2] * a00[3];\n                result[7][3]  += b01[3] * a00[3];\n                result[3][3]  += b01[3] * a00[1];\n                result[3][2]  += b01[2] * a00[1];\n                result[5][2]  += b01[2] * a00[2];\n                result[5][3]  += b01[3] * a00[2];\n                result[1][3]  += b01[3] * a00[0];\n                result[1][2]  += b01[2] * a00[0];\n            }\n        }\n\n        shared_offset4 ^= 32 * 8;\n        read_A_offset4 ^= 32 * 8;\n        read_B_offset4 ^= 32 * 8;\n        track0 += stride_k * 8;\n        track2 += stride_k * 8;\n        track4 += stride_k * 8;\n        track6 += stride_k * 8;\n    }\n\n    {\n    \n#if OPTIMIZE && N_DIVIDABLE_BY_64\n        device float4 *C4 = (device float4 *)((static_buffer + meta_buffer[2]));\n        const int N4 = N >> 2;\n        int m = group_position.x * 64 + m_offset * 8;\n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n\n    #if !M_DIVIDABLE_BY_64\n            if (m >= M) continue;\n    #endif\n\n            const int n = group_position.y * 16 + n_offset * 2;\n            float4 result0 = result[m_sub * 2 + 0];\n            float4 result1 = result[m_sub * 2 + 1];\n\n            C4[m * N4 + n + 0] = result0;\n            C4[m * N4 + n + 1] = result1;\n            \n            m++;\n        }\n#else\n        device float *C = (static_buffer + meta_buffer[2]);\n        int m = group_position.x * 64 + m_offset * 8;\n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n            int n = group_position.y * 64 + n_offset * 8;\n\n            for (int n_sub1 = 0; n_sub1 < 2; n_sub1++)\n            {\n                for (int n_sub2 = 0; n_sub2 < 4; n_sub2++)\n                {\n\n    #if OPTIMIZE && M_DIVIDABLE_BY_64\n                    (         n < N) ? (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : 0;\n    #else\n                    (m < M && n < N) ? (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : 0;\n    #endif\n                    n++;\n                }\n            }\n            \n            m++;\n        }\n#endif\n\n    }\n\n#undef M_DIVIDABLE_BY_64\n#undef N_DIVIDABLE_BY_64\n#undef K_DIVIDABLE_BY_8\n#undef A_STRIDE_K\n#undef B_STRIDE_K\n#undef A_STRIDE_M\n#undef B_STRIDE_N\n}\n\n\nkernel void fusedelementwise_73a4e22a76dd8f6822cbd7838747feb9d06349de918775cf6a5f84f2(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    const device float * v4 = (static_buffer + meta_buffer[3]);\n    device float * v5 = (static_buffer + meta_buffer[4]);\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int v8 = meta_buffer[7];\n    const int v9 = meta_buffer[8];\n    const int D0 = meta_buffer[9];\n    const int D1 = meta_buffer[10];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v10 = v3[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v11 = v4[d0 + d1*v8];\n            float v12;\n            {\n                v12 = v11 + v10;\n            }\n            float v13;\n            {\n                v13 = (v12 >= 10.0 ? 1.0 : tanh(v12));\n            }\n            const float v14 = v1[d0*v6 + d1];\n            float v15;\n            {\n                v15 = v13 * v14;\n            }\n            const float v16 = v2[d0*v7 + d1];\n            float v17;\n            {\n                v17 = v15 + v16;\n            }\n            v5[d0*v9 + d1] = v17;\n        }\n    }\n}\n",
+  "converted_at": 1555649351,
+  "kernel_source": "\n#include <metal_stdlib>\nusing namespace metal;\n\n#define OPTIMIZE 1\n\nkernel void transpose_1a0fbadea0475062956fc679399ce2f40129cb877aec049982efb309(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    device float * v2 = (static_buffer + meta_buffer[1]);\n    const int v3 = meta_buffer[2];\n    const int v4 = meta_buffer[3];\n    const int D0 = meta_buffer[4];\n    const int D1 = meta_buffer[5];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v5 = v1[d0*v3 + d1];\n            float v6;\n            {\n                v6 = v5;\n            }\n            v2[d0 + d1*v4] = v6;\n        }\n    }\n}\n\n\nkernel void im2col_9b539f2f74232353e897aa9134c69cfa1ee49d2b6fa3daf025ab98c3(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float *im = (static_buffer + meta_buffer[0]);\n    device float *col = (static_buffer + meta_buffer[1]);\n\n    const int N = meta_buffer[2];\n    const int C1 = meta_buffer[3];\n    const int H1 = meta_buffer[4];\n    const int W1 = meta_buffer[5];\n    const int H2 = meta_buffer[6];\n    const int W2 = meta_buffer[7];\n    const int KH = meta_buffer[8];\n    const int KW = meta_buffer[9];\n    const int DH = meta_buffer[10];\n    const int DW = meta_buffer[11];\n    const int SH = meta_buffer[12];\n    const int SW = meta_buffer[13];\n    const int PH = meta_buffer[14];\n    const int PW = meta_buffer[15];\n\n    for (int gid = index; gid < N*H2*W2*KH*KW*C1; gid += num_threads) {\n        const int w2 = gid % W2;\n        const int h2 = gid / W2 % H2;\n        const int  n = gid / W2 / H2 % N;\n        const int c1 = gid / W2 / H2 / N % C1;\n        const int kw = gid / W2 / H2 / N / C1 % KW;\n        const int kh = gid / W2 / H2 / N / C1 / KW;\n\n        const int h1 = h2 * SH - PH + kh * DH;\n        const int w1 = w2 * SW - PW + kw * DW;\n\n        col[gid] = (h1 < 0 || h1 >= H1 || w1 < 0 || w1 >= W1) ? 0 : im[((n*H1+h1)*W1+w1)*C1+c1];\n    }\n}\n\n\nkernel void tensordot_9d895cd7f9fb7f03b33f81c62b72615e90d48dc2748ce9a7d0fe1490(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_index_in_threadgroup]],\n                          uint2 group_position[[threadgroup_position_in_grid]])\n{\n#define M_DIVIDABLE_BY_64 1\n#define N_DIVIDABLE_BY_64 0\n#define K_DIVIDABLE_BY_8 0\n\n#define A_STRIDE_K M\n#define A_STRIDE_M 1\n\n#define B_STRIDE_K N\n#define B_STRIDE_N 1\n\n#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64 && OPTIMIZE\n    const device float4 *load_target4 = (index & 32)\n        ? (const device float4 *)((static_buffer + meta_buffer[1]))\n        : (const device float4 *)((static_buffer + meta_buffer[0]));\n#else\n    const device float *load_target = (index & 32)\n        ? ((static_buffer + meta_buffer[1]))\n        : ((static_buffer + meta_buffer[0]));\n#endif\n\n    const int M = meta_buffer[3];\n    const int N = meta_buffer[4];\n\n    const int K = meta_buffer[5];\n\n    threadgroup float4 shared4[32 * 8 * 2];\n\n    const int stride_k = (index & 32) ? B_STRIDE_K : A_STRIDE_K;\n    const int stride_mn = (index & 32) ? B_STRIDE_N : A_STRIDE_M;\n\n    const int m_offset = index & 7;\n    const int n_offset = index >> 3;\n\n    const int mn_load_offset = ((index & 32) ? group_position.y : group_position.x) * 64 + (index & 15) * 4;\n    const int k_load_offset = ((index & 16) ? 1 : 0);\n\n    int track0 = mn_load_offset * stride_mn + (k_load_offset + 0) * stride_k;\n    int track2 = track0 + 2 * stride_k;\n    int track4 = track0 + 4 * stride_k;\n    int track6 = track0 + 6 * stride_k;\n\n#if !OPTIMIZE || !M_DIVIDABLE_BY_64 || !N_DIVIDABLE_BY_64\n    const int max_MN = (index & 32) ? N : M;\n#endif\n\n    int shared_offset4 = ((index & 32) ? 16 : 0) + k_load_offset * 32 + (index & 15);\n    int read_A_offset4 = m_offset * 2;\n    int read_B_offset4 = n_offset * 2 + 16;\n\n    float4 result[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};\n    int k = 0;\n\n    while (k < K)\n    {\n        {\n#if OPTIMIZE && K_DIVIDABLE_BY_8\n    #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64\n        #if OPTIMIZE\n            shared4[shared_offset4 + 32 * 0] = load_target4[track0 >> 2];\n            shared4[shared_offset4 + 32 * 2] = load_target4[track2 >> 2];\n            shared4[shared_offset4 + 32 * 4] = load_target4[track4 >> 2];\n            shared4[shared_offset4 + 32 * 6] = load_target4[track6 >> 2];\n        #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                load_target[track0 + stride_mn * 0],\n                load_target[track0 + stride_mn * 1],\n                load_target[track0 + stride_mn * 2],\n                load_target[track0 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 2] = float4(\n                load_target[track2 + stride_mn * 0],\n                load_target[track2 + stride_mn * 1],\n                load_target[track2 + stride_mn * 2],\n                load_target[track2 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 4] = float4(\n                load_target[track4 + stride_mn * 0],\n                load_target[track4 + stride_mn * 1],\n                load_target[track4 + stride_mn * 2],\n                load_target[track4 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 6] = float4(\n                load_target[track6 + stride_mn * 0],\n                load_target[track6 + stride_mn * 1],\n                load_target[track6 + stride_mn * 2],\n                load_target[track6 + stride_mn * 3]\n            );\n        #endif\n    #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            );\n    #endif\n\n            k += 8;\n#else\n    #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 3]\n            );\n            k += 2;\n    #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            );\n            k += 2;\n    #endif\n#endif\n        }\n\n        threadgroup_barrier(mem_flags::mem_threadgroup);\n\n        {\n            for (int k_sub = 0; k_sub < 8; k_sub++)\n            {\n                float4 a00 = shared4[32 * k_sub + read_A_offset4 + 0];\n                float4 a01 = shared4[32 * k_sub + read_A_offset4 + 1];\n                float4 b00 = shared4[32 * k_sub + read_B_offset4 + 0];\n                float4 b01 = shared4[32 * k_sub + read_B_offset4 + 1];\n\n                result[4][0]  += b00[0] * a00[2];\n                result[4][1]  += b00[1] * a00[2];\n                result[0][1]  += b00[1] * a00[0];\n                result[0][0]  += b00[0] * a00[0];\n                result[6][0]  += b00[0] * a00[3];\n                result[6][1]  += b00[1] * a00[3];\n                result[2][1]  += b00[1] * a00[1];\n                result[2][0]  += b00[0] * a00[1];\n                result[12][0] += b00[0] * a01[2];\n                result[12][1] += b00[1] * a01[2];\n                result[8][1]  += b00[1] * a01[0];\n                result[8][0]  += b00[0] * a01[0];\n                result[14][0] += b00[0] * a01[3];\n                result[14][1] += b00[1] * a01[3];\n                result[10][1] += b00[1] * a01[1];\n                result[10][0] += b00[0] * a01[1];\n\n                result[14][2] += b00[2] * a01[3];\n                result[14][3] += b00[3] * a01[3];\n                result[10][3] += b00[3] * a01[1];\n                result[10][2] += b00[2] * a01[1];\n                result[12][2] += b00[2] * a01[2];\n                result[12][3] += b00[3] * a01[2];\n                result[8][3]  += b00[3] * a01[0];\n                result[8][2]  += b00[2] * a01[0];\n                result[6][2]  += b00[2] * a00[3];\n                result[6][3]  += b00[3] * a00[3];\n                result[2][3]  += b00[3] * a00[1];\n                result[2][2]  += b00[2] * a00[1];\n                result[4][2]  += b00[2] * a00[2];\n                result[4][3]  += b00[3] * a00[2];\n                result[0][3]  += b00[3] * a00[0];\n                result[0][2]  += b00[2] * a00[0];\n\n                result[5][0]  += b01[0] * a00[2];\n                result[5][1]  += b01[1] * a00[2];\n                result[1][1]  += b01[1] * a00[0];\n                result[1][0]  += b01[0] * a00[0];\n                result[7][0]  += b01[0] * a00[3];\n                result[7][1]  += b01[1] * a00[3];\n                result[3][1]  += b01[1] * a00[1];\n                result[3][0]  += b01[0] * a00[1];\n                result[13][0] += b01[0] * a01[2];\n                result[13][1] += b01[1] * a01[2];\n                result[9][1]  += b01[1] * a01[0];\n                result[9][0]  += b01[0] * a01[0];\n                result[15][0] += b01[0] * a01[3];\n                result[15][1] += b01[1] * a01[3];\n                result[11][1] += b01[1] * a01[1];\n                result[11][0] += b01[0] * a01[1];\n\n                result[15][2] += b01[2] * a01[3];\n                result[15][3] += b01[3] * a01[3];\n                result[11][3] += b01[3] * a01[1];\n                result[11][2] += b01[2] * a01[1];\n                result[13][2] += b01[2] * a01[2];\n                result[13][3] += b01[3] * a01[2];\n                result[9][3]  += b01[3] * a01[0];\n                result[9][2]  += b01[2] * a01[0];\n                result[7][2]  += b01[2] * a00[3];\n                result[7][3]  += b01[3] * a00[3];\n                result[3][3]  += b01[3] * a00[1];\n                result[3][2]  += b01[2] * a00[1];\n                result[5][2]  += b01[2] * a00[2];\n                result[5][3]  += b01[3] * a00[2];\n                result[1][3]  += b01[3] * a00[0];\n                result[1][2]  += b01[2] * a00[0];\n            }\n        }\n\n        shared_offset4 ^= 32 * 8;\n        read_A_offset4 ^= 32 * 8;\n        read_B_offset4 ^= 32 * 8;\n        track0 += stride_k * 8;\n        track2 += stride_k * 8;\n        track4 += stride_k * 8;\n        track6 += stride_k * 8;\n    }\n\n    {\n\n#if OPTIMIZE && N_DIVIDABLE_BY_64\n        device float4 *C4 = (device float4 *)((static_buffer + meta_buffer[2]));\n        const int N4 = N >> 2;\n        int m = group_position.x * 64 + m_offset * 8;\n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n\n    #if !M_DIVIDABLE_BY_64\n            if (m >= M) continue;\n    #endif\n\n            const int n = group_position.y * 16 + n_offset * 2;\n            float4 result0 = result[m_sub * 2 + 0];\n            float4 result1 = result[m_sub * 2 + 1];\n\n            C4[m * N4 + n + 0] = result0;\n            C4[m * N4 + n + 1] = result1;\n\n            m++;\n        }\n#else\n        device float *C = (static_buffer + meta_buffer[2]);\n        int m = group_position.x * 64 + m_offset * 8;\n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n            int n = group_position.y * 64 + n_offset * 8;\n\n            for (int n_sub1 = 0; n_sub1 < 2; n_sub1++)\n            {\n                for (int n_sub2 = 0; n_sub2 < 4; n_sub2++)\n                {\n\n    #if OPTIMIZE && M_DIVIDABLE_BY_64\n                    (         n < N) ? (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : 0;\n    #else\n                    (m < M && n < N) ? (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : 0;\n    #endif\n                    n++;\n                }\n            }\n\n            m++;\n        }\n#endif\n\n    }\n\n#undef M_DIVIDABLE_BY_64\n#undef N_DIVIDABLE_BY_64\n#undef K_DIVIDABLE_BY_8\n#undef A_STRIDE_K\n#undef B_STRIDE_K\n#undef A_STRIDE_M\n#undef B_STRIDE_N\n}\n\n\nkernel void fusedelementwise_a2a930f4af84e50dafd992d1d0ad7d711a096597302d47acf9a735ed(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    const device float * v4 = (static_buffer + meta_buffer[3]);\n    device float * v5 = (static_buffer + meta_buffer[4]);\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int D0 = meta_buffer[7];\n    const int D1 = meta_buffer[8];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v8 = v1[d0];\n        const float v9 = v2[d0];\n        const float v10 = v3[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v11 = v4[d0 + d1*v6];\n            float v12;\n            {\n                v12 = v11 + v9;\n            }\n            float v13;\n            {\n                v13 = v12 < 0.0 ? (exp(v12)-1) : v12;\n            }\n            float v14;\n            {\n                v14 = v13 * v8;\n            }\n            float v15;\n            {\n                v15 = v14 + v10;\n            }\n            v5[d0 + d1*v7] = v15;\n        }\n    }\n}\n\n\nkernel void tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_index_in_threadgroup]],\n                          uint2 group_position[[threadgroup_position_in_grid]])\n{\n#define M_DIVIDABLE_BY_64 1\n#define N_DIVIDABLE_BY_64 1\n#define K_DIVIDABLE_BY_8 1\n\n#define A_STRIDE_K M\n#define A_STRIDE_M 1\n\n#define B_STRIDE_K N\n#define B_STRIDE_N 1\n\n#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64 && OPTIMIZE\n    const device float4 *load_target4 = (index & 32)\n        ? (const device float4 *)((static_buffer + meta_buffer[1]))\n        : (const device float4 *)((static_buffer + meta_buffer[0]));\n#else\n    const device float *load_target = (index & 32)\n        ? ((static_buffer + meta_buffer[1]))\n        : ((static_buffer + meta_buffer[0]));\n#endif\n\n    const int M = meta_buffer[3];\n    const int N = meta_buffer[4];\n\n    const int K = meta_buffer[5];\n\n    threadgroup float4 shared4[32 * 8 * 2];\n\n    const int stride_k = (index & 32) ? B_STRIDE_K : A_STRIDE_K;\n    const int stride_mn = (index & 32) ? B_STRIDE_N : A_STRIDE_M;\n\n    const int m_offset = index & 7;\n    const int n_offset = index >> 3;\n\n    const int mn_load_offset = ((index & 32) ? group_position.y : group_position.x) * 64 + (index & 15) * 4;\n    const int k_load_offset = ((index & 16) ? 1 : 0);\n\n    int track0 = mn_load_offset * stride_mn + (k_load_offset + 0) * stride_k;\n    int track2 = track0 + 2 * stride_k;\n    int track4 = track0 + 4 * stride_k;\n    int track6 = track0 + 6 * stride_k;\n\n#if !OPTIMIZE || !M_DIVIDABLE_BY_64 || !N_DIVIDABLE_BY_64\n    const int max_MN = (index & 32) ? N : M;\n#endif\n\n    int shared_offset4 = ((index & 32) ? 16 : 0) + k_load_offset * 32 + (index & 15);\n    int read_A_offset4 = m_offset * 2;\n    int read_B_offset4 = n_offset * 2 + 16;\n\n    float4 result[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};\n    int k = 0;\n\n    while (k < K)\n    {\n        {\n#if OPTIMIZE && K_DIVIDABLE_BY_8\n    #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64\n        #if OPTIMIZE\n            shared4[shared_offset4 + 32 * 0] = load_target4[track0 >> 2];\n            shared4[shared_offset4 + 32 * 2] = load_target4[track2 >> 2];\n            shared4[shared_offset4 + 32 * 4] = load_target4[track4 >> 2];\n            shared4[shared_offset4 + 32 * 6] = load_target4[track6 >> 2];\n        #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                load_target[track0 + stride_mn * 0],\n                load_target[track0 + stride_mn * 1],\n                load_target[track0 + stride_mn * 2],\n                load_target[track0 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 2] = float4(\n                load_target[track2 + stride_mn * 0],\n                load_target[track2 + stride_mn * 1],\n                load_target[track2 + stride_mn * 2],\n                load_target[track2 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 4] = float4(\n                load_target[track4 + stride_mn * 0],\n                load_target[track4 + stride_mn * 1],\n                load_target[track4 + stride_mn * 2],\n                load_target[track4 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 6] = float4(\n                load_target[track6 + stride_mn * 0],\n                load_target[track6 + stride_mn * 1],\n                load_target[track6 + stride_mn * 2],\n                load_target[track6 + stride_mn * 3]\n            );\n        #endif\n    #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            );\n    #endif\n\n            k += 8;\n#else\n    #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 3]\n            );\n            k += 2;\n    #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            );\n            k += 2;\n    #endif\n#endif\n        }\n\n        threadgroup_barrier(mem_flags::mem_threadgroup);\n\n        {\n            for (int k_sub = 0; k_sub < 8; k_sub++)\n            {\n                float4 a00 = shared4[32 * k_sub + read_A_offset4 + 0];\n                float4 a01 = shared4[32 * k_sub + read_A_offset4 + 1];\n                float4 b00 = shared4[32 * k_sub + read_B_offset4 + 0];\n                float4 b01 = shared4[32 * k_sub + read_B_offset4 + 1];\n\n                result[4][0]  += b00[0] * a00[2];\n                result[4][1]  += b00[1] * a00[2];\n                result[0][1]  += b00[1] * a00[0];\n                result[0][0]  += b00[0] * a00[0];\n                result[6][0]  += b00[0] * a00[3];\n                result[6][1]  += b00[1] * a00[3];\n                result[2][1]  += b00[1] * a00[1];\n                result[2][0]  += b00[0] * a00[1];\n                result[12][0] += b00[0] * a01[2];\n                result[12][1] += b00[1] * a01[2];\n                result[8][1]  += b00[1] * a01[0];\n                result[8][0]  += b00[0] * a01[0];\n                result[14][0] += b00[0] * a01[3];\n                result[14][1] += b00[1] * a01[3];\n                result[10][1] += b00[1] * a01[1];\n                result[10][0] += b00[0] * a01[1];\n\n                result[14][2] += b00[2] * a01[3];\n                result[14][3] += b00[3] * a01[3];\n                result[10][3] += b00[3] * a01[1];\n                result[10][2] += b00[2] * a01[1];\n                result[12][2] += b00[2] * a01[2];\n                result[12][3] += b00[3] * a01[2];\n                result[8][3]  += b00[3] * a01[0];\n                result[8][2]  += b00[2] * a01[0];\n                result[6][2]  += b00[2] * a00[3];\n                result[6][3]  += b00[3] * a00[3];\n                result[2][3]  += b00[3] * a00[1];\n                result[2][2]  += b00[2] * a00[1];\n                result[4][2]  += b00[2] * a00[2];\n                result[4][3]  += b00[3] * a00[2];\n                result[0][3]  += b00[3] * a00[0];\n                result[0][2]  += b00[2] * a00[0];\n\n                result[5][0]  += b01[0] * a00[2];\n                result[5][1]  += b01[1] * a00[2];\n                result[1][1]  += b01[1] * a00[0];\n                result[1][0]  += b01[0] * a00[0];\n                result[7][0]  += b01[0] * a00[3];\n                result[7][1]  += b01[1] * a00[3];\n                result[3][1]  += b01[1] * a00[1];\n                result[3][0]  += b01[0] * a00[1];\n                result[13][0] += b01[0] * a01[2];\n                result[13][1] += b01[1] * a01[2];\n                result[9][1]  += b01[1] * a01[0];\n                result[9][0]  += b01[0] * a01[0];\n                result[15][0] += b01[0] * a01[3];\n                result[15][1] += b01[1] * a01[3];\n                result[11][1] += b01[1] * a01[1];\n                result[11][0] += b01[0] * a01[1];\n\n                result[15][2] += b01[2] * a01[3];\n                result[15][3] += b01[3] * a01[3];\n                result[11][3] += b01[3] * a01[1];\n                result[11][2] += b01[2] * a01[1];\n                result[13][2] += b01[2] * a01[2];\n                result[13][3] += b01[3] * a01[2];\n                result[9][3]  += b01[3] * a01[0];\n                result[9][2]  += b01[2] * a01[0];\n                result[7][2]  += b01[2] * a00[3];\n                result[7][3]  += b01[3] * a00[3];\n                result[3][3]  += b01[3] * a00[1];\n                result[3][2]  += b01[2] * a00[1];\n                result[5][2]  += b01[2] * a00[2];\n                result[5][3]  += b01[3] * a00[2];\n                result[1][3]  += b01[3] * a00[0];\n                result[1][2]  += b01[2] * a00[0];\n            }\n        }\n\n        shared_offset4 ^= 32 * 8;\n        read_A_offset4 ^= 32 * 8;\n        read_B_offset4 ^= 32 * 8;\n        track0 += stride_k * 8;\n        track2 += stride_k * 8;\n        track4 += stride_k * 8;\n        track6 += stride_k * 8;\n    }\n\n    {\n\n#if OPTIMIZE && N_DIVIDABLE_BY_64\n        device float4 *C4 = (device float4 *)((static_buffer + meta_buffer[2]));\n        const int N4 = N >> 2;\n        int m = group_position.x * 64 + m_offset * 8;\n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n\n    #if !M_DIVIDABLE_BY_64\n            if (m >= M) continue;\n    #endif\n\n            const int n = group_position.y * 16 + n_offset * 2;\n            float4 result0 = result[m_sub * 2 + 0];\n            float4 result1 = result[m_sub * 2 + 1];\n\n            C4[m * N4 + n + 0] = result0;\n            C4[m * N4 + n + 1] = result1;\n\n            m++;\n        }\n#else\n        device float *C = (static_buffer + meta_buffer[2]);\n        int m = group_position.x * 64 + m_offset * 8;\n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n            int n = group_position.y * 64 + n_offset * 8;\n\n            for (int n_sub1 = 0; n_sub1 < 2; n_sub1++)\n            {\n                for (int n_sub2 = 0; n_sub2 < 4; n_sub2++)\n                {\n\n    #if OPTIMIZE && M_DIVIDABLE_BY_64\n                    (         n < N) ? (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : 0;\n    #else\n                    (m < M && n < N) ? (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : 0;\n    #endif\n                    n++;\n                }\n            }\n\n            m++;\n        }\n#endif\n\n    }\n\n#undef M_DIVIDABLE_BY_64\n#undef N_DIVIDABLE_BY_64\n#undef K_DIVIDABLE_BY_8\n#undef A_STRIDE_K\n#undef B_STRIDE_K\n#undef A_STRIDE_M\n#undef B_STRIDE_N\n}\n\n\nkernel void fusedelementwise_d7553b29522557c8b64d2cc04d156a5f40027c86aac90f5130c7fadd(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    const device float * v4 = (static_buffer + meta_buffer[3]);\n    device float * v5 = (static_buffer + meta_buffer[4]);\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int D0 = meta_buffer[7];\n    const int D1 = meta_buffer[8];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v8 = v1[d0];\n        const float v9 = v2[d0];\n        const float v10 = v3[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v11 = v4[d0 + d1*v6];\n            float v12;\n            {\n                v12 = v11 + v9;\n            }\n            float v13;\n            {\n                v13 = v12 < 0.0 ? (exp(v12)-1) : v12;\n            }\n            float v14;\n            {\n                v14 = v13 * v10;\n            }\n            float v15;\n            {\n                v15 = v14 + v8;\n            }\n            v5[d0 + d1*v7] = v15;\n        }\n    }\n}\n\n\nkernel void fusedelementwise_cd9c38b832bb6cfabb3e178e30805e9e46f868d7e2eda733374e5554(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    const device float * v4 = (static_buffer + meta_buffer[3]);\n    device float * v5 = (static_buffer + meta_buffer[4]);\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int D0 = meta_buffer[7];\n    const int D1 = meta_buffer[8];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v8 = v1[d0];\n        const float v9 = v2[d0];\n        const float v10 = v3[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v11 = v4[d0 + d1*v6];\n            float v12;\n            {\n                v12 = v11 + v9;\n            }\n            float v13;\n            {\n                v13 = v12 < 0.0 ? (exp(v12)-1) : v12;\n            }\n            float v14;\n            {\n                v14 = v13 * v10;\n            }\n            float v15;\n            {\n                v15 = v14 + v8;\n            }\n            v5[d0*v7 + d1] = v15;\n        }\n    }\n}\n\n\nkernel void fusedelementwise_3cfde4edccf2d157c64e8a5e39f8ee66e10ec80af20ca9d5ae076bca(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    device float * v3 = (static_buffer + meta_buffer[2]);\n    const int v4 = meta_buffer[3];\n    const int v5 = meta_buffer[4];\n    const int D0 = meta_buffer[5];\n    const int D1 = meta_buffer[6];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v6 = v1[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v7 = v2[d0 + d1*v4];\n            float v8;\n            {\n                v8 = v7 + v6;\n            }\n            float v9;\n            {\n                v9 = v8 > 0 ? v8 : 0;\n            }\n            v3[d0 + d1*v5] = v9;\n        }\n    }\n}\n\n\nkernel void fusedelementwise_7560b5d8803146c39c48e815ea3893668f38d9cc141ac1762de925f0(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    device float * v4 = (static_buffer + meta_buffer[3]);\n    const int v5 = meta_buffer[4];\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int D0 = meta_buffer[7];\n    const int D1 = meta_buffer[8];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v8 = v1[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v9 = v2[d0*v5 + d1];\n            const float v10 = v3[d0 + d1*v6];\n            float v11;\n            {\n                v11 = v10 + v9;\n            }\n            float v12;\n            {\n                v12 = v8 + v11;\n            }\n            v4[d0*v7 + d1] = v12;\n        }\n    }\n}\n\n\nkernel void fusedelementwise_a20a904b1bca924ab7d7cab8105ebc7508be8a80c2d9180cd1376f85(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    device float * v4 = (static_buffer + meta_buffer[3]);\n    const int v5 = meta_buffer[4];\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int D0 = meta_buffer[7];\n    const int D1 = meta_buffer[8];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v8 = v1[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v9 = v2[d0 + d1*v5];\n            const float v10 = v3[d0*v6 + d1];\n            float v11;\n            {\n                v11 = v9 + v10;\n            }\n            float v12;\n            {\n                v12 = v8 + v11;\n            }\n            v4[d0*v7 + d1] = v12;\n        }\n    }\n}\n\n\nkernel void col2im_3257ca943e22088b2d823352586af59c3843348db068253d4bb00a88(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float *col = (static_buffer + meta_buffer[1]);\n    device float *im = (static_buffer + meta_buffer[0]);\n\n    const int N = meta_buffer[2];\n    const int C1 = meta_buffer[5];\n    const int H1 = meta_buffer[6];\n    const int W1 = meta_buffer[7];\n    const int H2 = meta_buffer[3];\n    const int W2 = meta_buffer[4];\n    const int KH = meta_buffer[8];\n    const int KW = meta_buffer[9];\n    const int SH = meta_buffer[10];\n    const int SW = meta_buffer[11];\n    const int PH = meta_buffer[12];\n    const int PW = meta_buffer[13];\n\n    for (int gid = index; gid < N*H1*W1*C1; gid += num_threads) {\n        const int c1 = gid % C1;\n        const int w1 = gid / C1 % W1;\n        const int h1 = gid / C1 / W1 % H1;\n        const int n  = gid / C1 / W1 / H1;\n\n        float sum = 0;\n\n        for (int kh = 0; kh < KH; kh++) {\n            const int h2 = (h1 + PH - kh) / SH;\n            if ((h1 + PH - kh) % SH != 0 || h2 < 0 || h2 >= H2) continue;\n\n            for (int kw = 0; kw < KW; kw++) {\n                const int w2 = (w1 + PW - kw) / SW;\n                if ((w1 + PW - kw) % SW != 0 || w2 < 0 || w2 >= W2) continue;\n\n                sum += col[((((n * H2 + h2) * W2 + w2) * KH + kh) * KW + kw) * C1 + c1];\n            }\n        }\n\n        im[gid] = sum;\n    }\n}\n\n\nkernel void fusedelementwise_af13236dc2a3b1e840f85fbb0a525534ef08be1bc7155583411cf2a0(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    const device float * v4 = (static_buffer + meta_buffer[3]);\n    device float * v5 = (static_buffer + meta_buffer[4]);\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int D0 = meta_buffer[7];\n    const int D1 = meta_buffer[8];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v8 = v1[d0];\n        const float v9 = v2[d0];\n        const float v10 = v3[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v11 = v4[d0 + d1*v6];\n            float v12;\n            {\n                v12 = v11 + v9;\n            }\n            float v13;\n            {\n                v13 = v12 < 0.0 ? (exp(v12)-1) : v12;\n            }\n            float v14;\n            {\n                v14 = v13 * v8;\n            }\n            float v15;\n            {\n                v15 = v14 + v10;\n            }\n            v5[d0*v7 + d1] = v15;\n        }\n    }\n}\n\n\nkernel void fusedelementwise_4c564a4f36f688401869a753cb6f3b81c1822d78b9977a72583ef390(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    const device float * v4 = (static_buffer + meta_buffer[3]);\n    device float * v5 = (static_buffer + meta_buffer[4]);\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int D0 = meta_buffer[7];\n    const int D1 = meta_buffer[8];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v8 = v1[d0];\n        const float v9 = v2[d0];\n        const float v10 = v3[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v11 = v4[d0 + d1*v6];\n            float v12;\n            {\n                v12 = v11 + v10;\n            }\n            float v13;\n            {\n                v13 = v12 < 0.0 ? (exp(v12)-1) : v12;\n            }\n            float v14;\n            {\n                v14 = v13 * v8;\n            }\n            float v15;\n            {\n                v15 = v14 + v9;\n            }\n            v5[d0*v7 + d1] = v15;\n        }\n    }\n}\n\n\nkernel void tensordot_488954f1cb868fb263cb3fa8afa4357054169df3d2df0ca624f30099(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint index[[thread_index_in_threadgroup]],\n                          uint2 group_position[[threadgroup_position_in_grid]])\n{\n#define M_DIVIDABLE_BY_64 1\n#define N_DIVIDABLE_BY_64 0\n#define K_DIVIDABLE_BY_8 1\n\n#define A_STRIDE_K M\n#define A_STRIDE_M 1\n\n#define B_STRIDE_K N\n#define B_STRIDE_N 1\n\n#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64 && OPTIMIZE\n    const device float4 *load_target4 = (index & 32)\n        ? (const device float4 *)((static_buffer + meta_buffer[1]))\n        : (const device float4 *)((static_buffer + meta_buffer[0]));\n#else\n    const device float *load_target = (index & 32)\n        ? ((static_buffer + meta_buffer[1]))\n        : ((static_buffer + meta_buffer[0]));\n#endif\n\n    const int M = meta_buffer[3];\n    const int N = meta_buffer[4];\n\n    const int K = meta_buffer[5];\n\n    threadgroup float4 shared4[32 * 8 * 2];\n\n    const int stride_k = (index & 32) ? B_STRIDE_K : A_STRIDE_K;\n    const int stride_mn = (index & 32) ? B_STRIDE_N : A_STRIDE_M;\n\n    const int m_offset = index & 7;\n    const int n_offset = index >> 3;\n\n    const int mn_load_offset = ((index & 32) ? group_position.y : group_position.x) * 64 + (index & 15) * 4;\n    const int k_load_offset = ((index & 16) ? 1 : 0);\n\n    int track0 = mn_load_offset * stride_mn + (k_load_offset + 0) * stride_k;\n    int track2 = track0 + 2 * stride_k;\n    int track4 = track0 + 4 * stride_k;\n    int track6 = track0 + 6 * stride_k;\n\n#if !OPTIMIZE || !M_DIVIDABLE_BY_64 || !N_DIVIDABLE_BY_64\n    const int max_MN = (index & 32) ? N : M;\n#endif\n\n    int shared_offset4 = ((index & 32) ? 16 : 0) + k_load_offset * 32 + (index & 15);\n    int read_A_offset4 = m_offset * 2;\n    int read_B_offset4 = n_offset * 2 + 16;\n\n    float4 result[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};\n    int k = 0;\n\n    while (k < K)\n    {\n        {\n#if OPTIMIZE && K_DIVIDABLE_BY_8\n    #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64\n        #if OPTIMIZE\n            shared4[shared_offset4 + 32 * 0] = load_target4[track0 >> 2];\n            shared4[shared_offset4 + 32 * 2] = load_target4[track2 >> 2];\n            shared4[shared_offset4 + 32 * 4] = load_target4[track4 >> 2];\n            shared4[shared_offset4 + 32 * 6] = load_target4[track6 >> 2];\n        #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                load_target[track0 + stride_mn * 0],\n                load_target[track0 + stride_mn * 1],\n                load_target[track0 + stride_mn * 2],\n                load_target[track0 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 2] = float4(\n                load_target[track2 + stride_mn * 0],\n                load_target[track2 + stride_mn * 1],\n                load_target[track2 + stride_mn * 2],\n                load_target[track2 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 4] = float4(\n                load_target[track4 + stride_mn * 0],\n                load_target[track4 + stride_mn * 1],\n                load_target[track4 + stride_mn * 2],\n                load_target[track4 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 6] = float4(\n                load_target[track6 + stride_mn * 0],\n                load_target[track6 + stride_mn * 1],\n                load_target[track6 + stride_mn * 2],\n                load_target[track6 + stride_mn * 3]\n            );\n        #endif\n    #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            );\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            );\n    #endif\n\n            k += 8;\n#else\n    #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 3]\n            );\n            k += 2;\n    #else\n            shared4[shared_offset4 + 32 * 0] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track0 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 2] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 4] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]\n            );\n            k += 2;\n\n            shared4[shared_offset4 + 32 * 6] = float4(\n                (k + k_load_offset >= K || mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],\n                (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],\n                (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],\n                (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]\n            );\n            k += 2;\n    #endif\n#endif\n        }\n\n        threadgroup_barrier(mem_flags::mem_threadgroup);\n\n        {\n            for (int k_sub = 0; k_sub < 8; k_sub++)\n            {\n                float4 a00 = shared4[32 * k_sub + read_A_offset4 + 0];\n                float4 a01 = shared4[32 * k_sub + read_A_offset4 + 1];\n                float4 b00 = shared4[32 * k_sub + read_B_offset4 + 0];\n                float4 b01 = shared4[32 * k_sub + read_B_offset4 + 1];\n\n                result[4][0]  += b00[0] * a00[2];\n                result[4][1]  += b00[1] * a00[2];\n                result[0][1]  += b00[1] * a00[0];\n                result[0][0]  += b00[0] * a00[0];\n                result[6][0]  += b00[0] * a00[3];\n                result[6][1]  += b00[1] * a00[3];\n                result[2][1]  += b00[1] * a00[1];\n                result[2][0]  += b00[0] * a00[1];\n                result[12][0] += b00[0] * a01[2];\n                result[12][1] += b00[1] * a01[2];\n                result[8][1]  += b00[1] * a01[0];\n                result[8][0]  += b00[0] * a01[0];\n                result[14][0] += b00[0] * a01[3];\n                result[14][1] += b00[1] * a01[3];\n                result[10][1] += b00[1] * a01[1];\n                result[10][0] += b00[0] * a01[1];\n\n                result[14][2] += b00[2] * a01[3];\n                result[14][3] += b00[3] * a01[3];\n                result[10][3] += b00[3] * a01[1];\n                result[10][2] += b00[2] * a01[1];\n                result[12][2] += b00[2] * a01[2];\n                result[12][3] += b00[3] * a01[2];\n                result[8][3]  += b00[3] * a01[0];\n                result[8][2]  += b00[2] * a01[0];\n                result[6][2]  += b00[2] * a00[3];\n                result[6][3]  += b00[3] * a00[3];\n                result[2][3]  += b00[3] * a00[1];\n                result[2][2]  += b00[2] * a00[1];\n                result[4][2]  += b00[2] * a00[2];\n                result[4][3]  += b00[3] * a00[2];\n                result[0][3]  += b00[3] * a00[0];\n                result[0][2]  += b00[2] * a00[0];\n\n                result[5][0]  += b01[0] * a00[2];\n                result[5][1]  += b01[1] * a00[2];\n                result[1][1]  += b01[1] * a00[0];\n                result[1][0]  += b01[0] * a00[0];\n                result[7][0]  += b01[0] * a00[3];\n                result[7][1]  += b01[1] * a00[3];\n                result[3][1]  += b01[1] * a00[1];\n                result[3][0]  += b01[0] * a00[1];\n                result[13][0] += b01[0] * a01[2];\n                result[13][1] += b01[1] * a01[2];\n                result[9][1]  += b01[1] * a01[0];\n                result[9][0]  += b01[0] * a01[0];\n                result[15][0] += b01[0] * a01[3];\n                result[15][1] += b01[1] * a01[3];\n                result[11][1] += b01[1] * a01[1];\n                result[11][0] += b01[0] * a01[1];\n\n                result[15][2] += b01[2] * a01[3];\n                result[15][3] += b01[3] * a01[3];\n                result[11][3] += b01[3] * a01[1];\n                result[11][2] += b01[2] * a01[1];\n                result[13][2] += b01[2] * a01[2];\n                result[13][3] += b01[3] * a01[2];\n                result[9][3]  += b01[3] * a01[0];\n                result[9][2]  += b01[2] * a01[0];\n                result[7][2]  += b01[2] * a00[3];\n                result[7][3]  += b01[3] * a00[3];\n                result[3][3]  += b01[3] * a00[1];\n                result[3][2]  += b01[2] * a00[1];\n                result[5][2]  += b01[2] * a00[2];\n                result[5][3]  += b01[3] * a00[2];\n                result[1][3]  += b01[3] * a00[0];\n                result[1][2]  += b01[2] * a00[0];\n            }\n        }\n\n        shared_offset4 ^= 32 * 8;\n        read_A_offset4 ^= 32 * 8;\n        read_B_offset4 ^= 32 * 8;\n        track0 += stride_k * 8;\n        track2 += stride_k * 8;\n        track4 += stride_k * 8;\n        track6 += stride_k * 8;\n    }\n\n    {\n\n#if OPTIMIZE && N_DIVIDABLE_BY_64\n        device float4 *C4 = (device float4 *)((static_buffer + meta_buffer[2]));\n        const int N4 = N >> 2;\n        int m = group_position.x * 64 + m_offset * 8;\n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n\n    #if !M_DIVIDABLE_BY_64\n            if (m >= M) continue;\n    #endif\n\n            const int n = group_position.y * 16 + n_offset * 2;\n            float4 result0 = result[m_sub * 2 + 0];\n            float4 result1 = result[m_sub * 2 + 1];\n\n            C4[m * N4 + n + 0] = result0;\n            C4[m * N4 + n + 1] = result1;\n\n            m++;\n        }\n#else\n        device float *C = (static_buffer + meta_buffer[2]);\n        int m = group_position.x * 64 + m_offset * 8;\n        for (int m_sub = 0; m_sub < 8; m_sub++)\n        {\n            int n = group_position.y * 64 + n_offset * 8;\n\n            for (int n_sub1 = 0; n_sub1 < 2; n_sub1++)\n            {\n                for (int n_sub2 = 0; n_sub2 < 4; n_sub2++)\n                {\n\n    #if OPTIMIZE && M_DIVIDABLE_BY_64\n                    (         n < N) ? (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : 0;\n    #else\n                    (m < M && n < N) ? (C[m * N + n] = result[m_sub * 2 + n_sub1][n_sub2]) : 0;\n    #endif\n                    n++;\n                }\n            }\n\n            m++;\n        }\n#endif\n\n    }\n\n#undef M_DIVIDABLE_BY_64\n#undef N_DIVIDABLE_BY_64\n#undef K_DIVIDABLE_BY_8\n#undef A_STRIDE_K\n#undef B_STRIDE_K\n#undef A_STRIDE_M\n#undef B_STRIDE_N\n}\n\n\nkernel void fusedelementwise_b25ccdde24c28ffe070ed082512bd1c7c1afa0657bd494eb618c6b98(device float * static_buffer[[buffer(0)]],\n                          device float * dynamic_buffer[[buffer(1)]],\n                          const device int * meta_buffer [[buffer(2)]],\n                          uint gid[[thread_position_in_grid]],\n                          uint num_threads[[threads_per_grid]])\n{\n    const device float * v1 = (static_buffer + meta_buffer[0]);\n    const device float * v2 = (static_buffer + meta_buffer[1]);\n    const device float * v3 = (static_buffer + meta_buffer[2]);\n    const device float * v4 = (static_buffer + meta_buffer[3]);\n    device float * v5 = (static_buffer + meta_buffer[4]);\n    const int v6 = meta_buffer[5];\n    const int v7 = meta_buffer[6];\n    const int v8 = meta_buffer[7];\n    const int v9 = meta_buffer[8];\n    const int D0 = meta_buffer[9];\n    const int D1 = meta_buffer[10];\n    int d0;\n    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {\n        const float v10 = v2[d0];\n        int d1;\n        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {\n            const float v11 = v4[d0 + d1*v8];\n            float v12;\n            {\n                v12 = v11 + v10;\n            }\n            float v13;\n            {\n                v13 = (v12 >= 10.0 ? 1.0 : tanh(v12));\n            }\n            const float v14 = v3[d0*v7 + d1];\n            float v15;\n            {\n                v15 = v13 * v14;\n            }\n            const float v16 = v1[d0*v6 + d1];\n            float v17;\n            {\n                v17 = v15 + v16;\n            }\n            v5[d0*v9 + d1] = v17;\n        }\n    }\n}\n",
   "exec_infos": [
     {
       "entry_func_name": "transpose_1a0fbadea0475062956fc679399ce2f40129cb877aec049982efb309",
@@ -18,12 +18,12 @@
       },
       "meta_buffer": [
         131,
-        53,
-        78,
+        249,
+        92,
         3,
         131,
-        1,
-        82,
+        129,
+        95,
         3,
         0,
         108,
@@ -58,8 +58,8 @@
       },
       "meta_buffer": [
         131,
-        1,
-        82,
+        129,
+        95,
         3,
         131,
         209,
@@ -125,7 +125,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720",
+      "entry_func_name": "tensordot_9d895cd7f9fb7f03b33f81c62b72615e90d48dc2748ce9a7d0fe1490",
       "threadgroups_per_grid": {
         "width": 432,
         "height": 1,
@@ -179,15 +179,15 @@
         "depth": 1
       },
       "meta_buffer": [
-        128,
-        30,
-        0,
-        0,
         160,
         30,
         0,
         0,
         96,
+        30,
+        0,
+        0,
+        128,
         30,
         0,
         0,
@@ -197,7 +197,7 @@
         2,
         131,
         149,
-        202,
+        229,
         2,
         32,
         0,
@@ -233,7 +233,7 @@
       "meta_buffer": [
         131,
         149,
-        202,
+        229,
         2,
         131,
         85,
@@ -299,7 +299,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4",
+      "entry_func_name": "tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287",
       "threadgroups_per_grid": {
         "width": 108,
         "height": 1,
@@ -339,7 +339,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "fusedelementwise_855ad3208167b85cd53ecff129502284363603cb8bd77639f64c5c88",
+      "entry_func_name": "fusedelementwise_d7553b29522557c8b64d2cc04d156a5f40027c86aac90f5130c7fadd",
       "threadgroups_per_grid": {
         "width": 8,
         "height": 1,
@@ -353,12 +353,12 @@
         "depth": 1
       },
       "meta_buffer": [
-        192,
-        158,
-        0,
-        0,
         0,
         159,
+        0,
+        0,
+        192,
+        158,
         0,
         0,
         64,
@@ -370,8 +370,8 @@
         243,
         2,
         131,
-        21,
-        243,
+        213,
+        249,
         2,
         64,
         0,
@@ -406,12 +406,12 @@
       },
       "meta_buffer": [
         131,
-        21,
-        243,
+        213,
+        249,
         2,
         131,
         21,
-        162,
+        135,
         2,
         1,
         0,
@@ -473,7 +473,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4",
+      "entry_func_name": "tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287",
       "threadgroups_per_grid": {
         "width": 27,
         "height": 2,
@@ -487,15 +487,15 @@
       "meta_buffer": [
         131,
         21,
-        162,
+        135,
         2,
         128,
         159,
         0,
         0,
         131,
-        149,
-        27,
+        21,
+        68,
         3,
         192,
         6,
@@ -513,7 +513,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "fusedelementwise_af13236dc2a3b1e840f85fbb0a525534ef08be1bc7155583411cf2a0",
+      "entry_func_name": "fusedelementwise_cd9c38b832bb6cfabb3e178e30805e9e46f868d7e2eda733374e5554",
       "threadgroups_per_grid": {
         "width": 8,
         "height": 1,
@@ -532,20 +532,20 @@
         2,
         0,
         128,
-        160,
-        2,
-        0,
-        128,
         159,
         2,
         0,
+        128,
+        160,
+        2,
+        0,
         131,
-        149,
-        27,
+        21,
+        68,
         3,
         131,
-        85,
-        61,
+        117,
+        44,
         3,
         128,
         0,
@@ -582,12 +582,12 @@
       },
       "meta_buffer": [
         131,
-        85,
-        61,
-        3,
-        131,
         117,
         44,
+        3,
+        131,
+        53,
+        78,
         3,
         192,
         6,
@@ -622,12 +622,12 @@
       },
       "meta_buffer": [
         131,
-        117,
-        44,
+        53,
+        78,
         3,
         131,
-        149,
-        13,
+        181,
+        104,
         2,
         1,
         0,
@@ -689,7 +689,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4",
+      "entry_func_name": "tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287",
       "threadgroups_per_grid": {
         "width": 27,
         "height": 2,
@@ -702,16 +702,16 @@
       },
       "meta_buffer": [
         131,
-        149,
-        13,
+        181,
+        104,
         2,
         0,
         161,
         2,
         0,
         131,
-        117,
-        17,
+        85,
+        88,
         3,
         192,
         6,
@@ -748,12 +748,12 @@
         4,
         0,
         131,
-        117,
-        17,
+        85,
+        88,
         3,
         131,
-        117,
-        17,
+        21,
+        14,
         3,
         128,
         0,
@@ -788,13 +788,13 @@
       },
       "meta_buffer": [
         131,
-        117,
-        17,
+        21,
+        14,
         3,
         131,
-        245,
-        43,
-        2,
+        85,
+        87,
+        1,
         1,
         0,
         0,
@@ -855,7 +855,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4",
+      "entry_func_name": "tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287",
       "threadgroups_per_grid": {
         "width": 27,
         "height": 2,
@@ -868,16 +868,16 @@
       },
       "meta_buffer": [
         131,
-        245,
-        43,
-        2,
+        85,
+        87,
+        1,
         128,
         225,
         4,
         0,
         131,
         213,
-        74,
+        20,
         3,
         192,
         6,
@@ -914,16 +914,16 @@
         7,
         0,
         131,
-        85,
-        61,
+        117,
+        44,
         3,
         131,
         213,
-        74,
+        20,
         3,
         131,
-        85,
-        61,
+        117,
+        44,
         3,
         192,
         6,
@@ -964,12 +964,12 @@
       },
       "meta_buffer": [
         131,
-        85,
-        61,
+        117,
+        44,
         3,
         131,
-        181,
-        37,
+        85,
+        34,
         3,
         192,
         6,
@@ -1004,13 +1004,13 @@
       },
       "meta_buffer": [
         131,
-        181,
-        37,
+        85,
+        34,
         3,
         131,
-        85,
-        74,
-        2,
+        117,
+        178,
+        1,
         1,
         0,
         0,
@@ -1071,7 +1071,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4",
+      "entry_func_name": "tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287",
       "threadgroups_per_grid": {
         "width": 27,
         "height": 2,
@@ -1084,16 +1084,16 @@
       },
       "meta_buffer": [
         131,
-        85,
-        74,
-        2,
+        117,
+        178,
+        1,
         0,
         34,
         7,
         0,
         131,
-        117,
-        71,
+        149,
+        27,
         3,
         192,
         6,
@@ -1130,12 +1130,12 @@
         9,
         0,
         131,
-        117,
-        71,
+        149,
+        27,
         3,
         131,
-        117,
-        71,
+        149,
+        27,
         3,
         128,
         0,
@@ -1170,13 +1170,13 @@
       },
       "meta_buffer": [
         131,
-        117,
-        71,
+        149,
+        27,
         3,
         131,
-        181,
-        104,
-        2,
+        213,
+        208,
+        1,
         1,
         0,
         0,
@@ -1237,7 +1237,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4",
+      "entry_func_name": "tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287",
       "threadgroups_per_grid": {
         "width": 27,
         "height": 2,
@@ -1250,16 +1250,16 @@
       },
       "meta_buffer": [
         131,
-        181,
-        104,
-        2,
+        213,
+        208,
+        1,
         128,
         98,
         9,
         0,
         131,
-        85,
-        7,
+        53,
+        51,
         3,
         192,
         6,
@@ -1296,16 +1296,16 @@
         11,
         0,
         131,
-        85,
-        61,
+        117,
+        44,
         3,
         131,
-        85,
-        7,
+        53,
+        51,
         3,
         131,
-        85,
-        61,
+        117,
+        44,
         3,
         192,
         6,
@@ -1346,12 +1346,12 @@
       },
       "meta_buffer": [
         131,
-        85,
-        61,
+        117,
+        44,
         3,
         131,
-        53,
-        51,
+        245,
+        57,
         3,
         192,
         6,
@@ -1386,13 +1386,13 @@
       },
       "meta_buffer": [
         131,
-        53,
-        51,
+        245,
+        57,
         3,
         131,
-        213,
-        208,
-        1,
+        245,
+        43,
+        2,
         1,
         0,
         0,
@@ -1453,7 +1453,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4",
+      "entry_func_name": "tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287",
       "threadgroups_per_grid": {
         "width": 27,
         "height": 2,
@@ -1466,16 +1466,16 @@
       },
       "meta_buffer": [
         131,
-        213,
-        208,
-        1,
+        245,
+        43,
+        2,
         0,
         163,
         11,
         0,
         131,
         181,
-        10,
+        64,
         3,
         192,
         6,
@@ -1513,11 +1513,11 @@
         0,
         131,
         181,
-        10,
+        64,
         3,
         131,
-        181,
-        64,
+        213,
+        74,
         3,
         128,
         0,
@@ -1552,13 +1552,13 @@
       },
       "meta_buffer": [
         131,
-        181,
-        64,
+        213,
+        74,
         3,
         131,
-        21,
-        148,
-        1,
+        85,
+        74,
+        2,
         1,
         0,
         0,
@@ -1619,7 +1619,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4",
+      "entry_func_name": "tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287",
       "threadgroups_per_grid": {
         "width": 27,
         "height": 2,
@@ -1632,16 +1632,16 @@
       },
       "meta_buffer": [
         131,
-        21,
-        148,
-        1,
+        85,
+        74,
+        2,
         128,
         227,
         13,
         0,
         131,
-        53,
-        24,
+        149,
+        81,
         3,
         192,
         6,
@@ -1678,16 +1678,16 @@
         16,
         0,
         131,
-        85,
-        61,
+        117,
+        44,
         3,
         131,
-        53,
-        24,
+        149,
+        81,
         3,
         131,
-        85,
-        61,
+        245,
+        84,
         3,
         192,
         6,
@@ -1728,12 +1728,12 @@
       },
       "meta_buffer": [
         131,
-        85,
-        61,
+        245,
+        84,
         3,
         131,
-        21,
-        68,
+        117,
+        17,
         3,
         192,
         6,
@@ -1768,12 +1768,12 @@
       },
       "meta_buffer": [
         131,
-        21,
-        68,
+        117,
+        17,
         3,
         131,
-        85,
-        87,
+        181,
+        117,
         1,
         1,
         0,
@@ -1835,7 +1835,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4",
+      "entry_func_name": "tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287",
       "threadgroups_per_grid": {
         "width": 27,
         "height": 2,
@@ -1848,16 +1848,16 @@
       },
       "meta_buffer": [
         131,
-        85,
-        87,
+        181,
+        117,
         1,
         0,
         36,
         16,
         0,
         131,
-        21,
-        14,
+        53,
+        24,
         3,
         192,
         6,
@@ -1894,12 +1894,12 @@
         18,
         0,
         131,
-        21,
-        14,
+        53,
+        24,
         3,
         131,
-        213,
-        20,
+        245,
+        30,
         3,
         128,
         0,
@@ -1934,12 +1934,12 @@
       },
       "meta_buffer": [
         131,
-        213,
-        20,
+        245,
+        30,
         3,
         131,
-        181,
-        117,
+        21,
+        148,
         1,
         1,
         0,
@@ -2001,7 +2001,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4",
+      "entry_func_name": "tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287",
       "threadgroups_per_grid": {
         "width": 27,
         "height": 2,
@@ -2014,16 +2014,16 @@
       },
       "meta_buffer": [
         131,
-        181,
-        117,
+        21,
+        148,
         1,
         128,
         100,
         18,
         0,
         131,
-        245,
-        30,
+        181,
+        37,
         3,
         192,
         6,
@@ -2041,7 +2041,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "fusedelementwise_7560b5d8803146c39c48e815ea3893668f38d9cc141ac1762de925f0",
+      "entry_func_name": "fusedelementwise_a20a904b1bca924ab7d7cab8105ebc7508be8a80c2d9180cd1376f85",
       "threadgroups_per_grid": {
         "width": 8,
         "height": 1,
@@ -2060,23 +2060,23 @@
         20,
         0,
         131,
-        85,
-        61,
+        181,
+        37,
         3,
         131,
         245,
-        30,
+        84,
         3,
         131,
-        85,
-        61,
+        21,
+        41,
         3,
-        192,
-        6,
-        0,
-        0,
         128,
         0,
+        0,
+        0,
+        192,
+        6,
         0,
         0,
         192,
@@ -2110,12 +2110,12 @@
       },
       "meta_buffer": [
         131,
-        85,
-        61,
+        21,
+        41,
         3,
         131,
-        85,
-        34,
+        213,
+        47,
         3,
         192,
         6,
@@ -2150,12 +2150,12 @@
       },
       "meta_buffer": [
         131,
-        85,
-        34,
+        213,
+        47,
         3,
         131,
-        117,
-        178,
+        53,
+        239,
         1,
         1,
         0,
@@ -2217,7 +2217,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4",
+      "entry_func_name": "tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287",
       "threadgroups_per_grid": {
         "width": 27,
         "height": 2,
@@ -2230,16 +2230,16 @@
       },
       "meta_buffer": [
         131,
-        117,
-        178,
+        53,
+        239,
         1,
         0,
         165,
         20,
         0,
         131,
-        21,
-        41,
+        149,
+        54,
         3,
         192,
         6,
@@ -2276,12 +2276,12 @@
         22,
         0,
         131,
-        21,
-        41,
+        149,
+        54,
         3,
         131,
-        213,
-        47,
+        149,
+        54,
         3,
         128,
         0,
@@ -2316,13 +2316,13 @@
       },
       "meta_buffer": [
         131,
-        213,
-        47,
+        149,
+        54,
         3,
         131,
-        53,
-        239,
-        1,
+        149,
+        13,
+        2,
         1,
         0,
         0,
@@ -2383,7 +2383,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4",
+      "entry_func_name": "tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287",
       "threadgroups_per_grid": {
         "width": 27,
         "height": 2,
@@ -2396,16 +2396,16 @@
       },
       "meta_buffer": [
         131,
-        53,
-        239,
-        1,
+        149,
+        13,
+        2,
         128,
         229,
         22,
         0,
         131,
-        149,
-        54,
+        85,
+        61,
         3,
         192,
         6,
@@ -2442,16 +2442,16 @@
         25,
         0,
         131,
+        21,
+        41,
+        3,
+        131,
         85,
         61,
         3,
         131,
-        149,
-        54,
-        3,
-        131,
-        245,
-        57,
+        117,
+        71,
         3,
         192,
         6,
@@ -2477,7 +2477,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4",
+      "entry_func_name": "tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287",
       "threadgroups_per_grid": {
         "width": 27,
         "height": 16,
@@ -2490,8 +2490,8 @@
       },
       "meta_buffer": [
         131,
-        245,
-        57,
+        117,
+        71,
         3,
         0,
         38,
@@ -2499,7 +2499,7 @@
         0,
         131,
         21,
-        135,
+        162,
         2,
         192,
         6,
@@ -2517,7 +2517,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "col2im_8a1be4f38d62554df5813223c19078e9dec475d3123d422dd2cbee28",
+      "entry_func_name": "col2im_3257ca943e22088b2d823352586af59c3843348db068253d4bb00a88",
       "threadgroups_per_grid": {
         "width": 8,
         "height": 1,
@@ -2532,12 +2532,12 @@
       },
       "meta_buffer": [
         131,
-        213,
-        249,
-        2,
+        149,
+        0,
+        3,
         131,
         21,
-        135,
+        162,
         2,
         1,
         0,
@@ -2591,7 +2591,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "fusedelementwise_43b459b6893088b1c84e13bcc262d1474635cb2f332eb47df57e145b",
+      "entry_func_name": "fusedelementwise_af13236dc2a3b1e840f85fbb0a525534ef08be1bc7155583411cf2a0",
       "threadgroups_per_grid": {
         "width": 8,
         "height": 1,
@@ -2605,10 +2605,6 @@
         "depth": 1
       },
       "meta_buffer": [
-        64,
-        38,
-        27,
-        0,
         128,
         38,
         27,
@@ -2617,13 +2613,17 @@
         38,
         27,
         0,
-        131,
-        213,
-        249,
-        2,
+        64,
+        38,
+        27,
+        0,
         131,
         149,
         0,
+        3,
+        131,
+        85,
+        7,
         3,
         64,
         0,
@@ -2645,7 +2645,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4",
+      "entry_func_name": "tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287",
       "threadgroups_per_grid": {
         "width": 108,
         "height": 8,
@@ -2658,8 +2658,8 @@
       },
       "meta_buffer": [
         131,
-        149,
-        0,
+        85,
+        7,
         3,
         192,
         38,
@@ -2685,7 +2685,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "col2im_8a1be4f38d62554df5813223c19078e9dec475d3123d422dd2cbee28",
+      "entry_func_name": "col2im_3257ca943e22088b2d823352586af59c3843348db068253d4bb00a88",
       "threadgroups_per_grid": {
         "width": 8,
         "height": 1,
@@ -2700,8 +2700,8 @@
       },
       "meta_buffer": [
         131,
-        149,
-        229,
+        21,
+        189,
         2,
         131,
         85,
@@ -2786,12 +2786,12 @@
         27,
         0,
         131,
-        149,
-        229,
-        2,
-        131,
         21,
         189,
+        2,
+        131,
+        149,
+        202,
         2,
         32,
         0,
@@ -2813,7 +2813,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc",
+      "entry_func_name": "tensordot_488954f1cb868fb263cb3fa8afa4357054169df3d2df0ca624f30099",
       "threadgroups_per_grid": {
         "width": 432,
         "height": 4,
@@ -2826,8 +2826,8 @@
       },
       "meta_buffer": [
         131,
-        21,
-        189,
+        149,
+        202,
         2,
         32,
         167,
@@ -2853,7 +2853,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "col2im_8a1be4f38d62554df5813223c19078e9dec475d3123d422dd2cbee28",
+      "entry_func_name": "col2im_3257ca943e22088b2d823352586af59c3843348db068253d4bb00a88",
       "threadgroups_per_grid": {
         "width": 8,
         "height": 1,
@@ -2868,8 +2868,8 @@
       },
       "meta_buffer": [
         131,
-        121,
-        79,
+        181,
+        91,
         3,
         131,
         77,
@@ -2927,7 +2927,7 @@
       "unresolved_value_list": []
     },
     {
-      "entry_func_name": "fusedelementwise_73a4e22a76dd8f6822cbd7838747feb9d06349de918775cf6a5f84f2",
+      "entry_func_name": "fusedelementwise_b25ccdde24c28ffe070ed082512bd1c7c1afa0657bd494eb618c6b98",
       "threadgroups_per_grid": {
         "width": 8,
         "height": 1,
@@ -2941,25 +2941,25 @@
         "depth": 1
       },
       "meta_buffer": [
+        128,
+        197,
+        27,
+        0,
+        128,
+        9,
+        29,
+        0,
         131,
         9,
         29,
         0,
         131,
-        197,
-        27,
-        0,
-        128,
-        197,
-        27,
-        0,
-        131,
-        121,
-        79,
+        181,
+        91,
         3,
         131,
-        189,
-        80,
+        61,
+        94,
         3,
         0,
         108,
@@ -2992,16 +2992,16 @@
   "weight_encoding": "eightbit",
   "memory_layout": {
     "static": {
-      "size": 55788931,
+      "size": 56673667,
       "allocations": {
         "a45": {
           "name": "a45",
-          "offset": 55457155,
+          "offset": 56424835,
           "size": 82944
         },
         "a47": {
           "name": "a47",
-          "offset": 55705987,
+          "offset": 56590723,
           "size": 82944
         },
         "a48": {
@@ -3016,7 +3016,7 @@
         },
         "a50": {
           "name": "a50",
-          "offset": 46830979,
+          "offset": 48600451,
           "size": 884736
         },
         "a51": {
@@ -3024,184 +3024,199 @@
           "offset": 15422851,
           "size": 3538944
         },
-        "a100": {
-          "name": "a100",
+        "a52": {
+          "name": "a52",
           "offset": 49485187,
+          "size": 442368
+        },
+        "a53": {
+          "name": "a53",
+          "offset": 49927555,
           "size": 442368
         },
         "a54": {
           "name": "a54",
-          "offset": 44176771,
+          "offset": 42407299,
           "size": 1769472
         },
         "a55": {
           "name": "a55",
-          "offset": 52139395,
+          "offset": 54793603,
           "size": 221184
         },
-        "a106": {
-          "name": "a106",
-          "offset": 54351235,
+        "a102": {
+          "name": "a102",
+          "offset": 53245315,
           "size": 221184
         },
         "a57": {
           "name": "a57",
-          "offset": 53245315,
+          "offset": 55457155,
           "size": 221184
         },
         "a58": {
           "name": "a58",
-          "offset": 34444675,
+          "offset": 40416643,
           "size": 1990656
         },
-        "a101": {
-          "name": "a101",
-          "offset": 51475843,
+        "a59": {
+          "name": "a59",
+          "offset": 56120707,
+          "size": 221184
+        },
+        "a60": {
+          "name": "a60",
+          "offset": 51254659,
           "size": 221184
         },
         "a61": {
           "name": "a61",
-          "offset": 36435331,
+          "offset": 22500739,
           "size": 1990656
         },
         "a62": {
           "name": "a62",
-          "offset": 55235971,
+          "offset": 51697027,
           "size": 221184
         },
         "a64": {
           "name": "a64",
-          "offset": 52802947,
+          "offset": 52581763,
           "size": 221184
         },
         "a65": {
           "name": "a65",
-          "offset": 38425987,
+          "offset": 28472707,
           "size": 1990656
         },
-        "a103": {
-          "name": "a103",
-          "offset": 55014787,
+        "a101": {
+          "name": "a101",
+          "offset": 52139395,
           "size": 221184
         },
         "a68": {
           "name": "a68",
-          "offset": 40416643,
+          "offset": 30463363,
           "size": 1990656
         },
         "a69": {
           "name": "a69",
-          "offset": 50812291,
+          "offset": 53687683,
           "size": 221184
         },
         "a71": {
           "name": "a71",
-          "offset": 53687683,
+          "offset": 54130051,
           "size": 221184
         },
         "a72": {
           "name": "a72",
-          "offset": 30463363,
+          "offset": 36435331,
           "size": 1990656
         },
         "a73": {
           "name": "a73",
-          "offset": 51033475,
+          "offset": 54572419,
           "size": 221184
         },
         "a74": {
           "name": "a74",
-          "offset": 54572419,
+          "offset": 55235971,
           "size": 221184
         },
         "a75": {
           "name": "a75",
-          "offset": 26482051,
+          "offset": 38425987,
           "size": 1990656
         },
         "a76": {
           "name": "a76",
-          "offset": 51918211,
+          "offset": 55678339,
+          "size": 221184
+        },
+        "a77": {
+          "name": "a77",
+          "offset": 55899523,
           "size": 221184
         },
         "a78": {
           "name": "a78",
-          "offset": 54793603,
+          "offset": 51475843,
           "size": 221184
         },
         "a79": {
           "name": "a79",
-          "offset": 22500739,
+          "offset": 24491395,
           "size": 1990656
         },
         "a80": {
           "name": "a80",
-          "offset": 51254659,
+          "offset": 51918211,
           "size": 221184
         },
         "a81": {
           "name": "a81",
-          "offset": 51697027,
+          "offset": 52360579,
           "size": 221184
         },
         "a82": {
           "name": "a82",
-          "offset": 24491395,
+          "offset": 26482051,
           "size": 1990656
         },
         "a83": {
           "name": "a83",
-          "offset": 52360579,
+          "offset": 52802947,
+          "size": 221184
+        },
+        "a84": {
+          "name": "a84",
+          "offset": 53024131,
           "size": 221184
         },
         "a85": {
           "name": "a85",
-          "offset": 52581763,
+          "offset": 53466499,
           "size": 221184
         },
         "a86": {
           "name": "a86",
-          "offset": 28472707,
+          "offset": 32454019,
           "size": 1990656
         },
-        "a87": {
-          "name": "a87",
-          "offset": 53024131,
-          "size": 221184
-        },
-        "a88": {
-          "name": "a88",
-          "offset": 53466499,
+        "a103": {
+          "name": "a103",
+          "offset": 53908867,
           "size": 221184
         },
         "a89": {
           "name": "a89",
-          "offset": 32454019,
+          "offset": 34444675,
           "size": 1990656
         },
         "a90": {
           "name": "a90",
-          "offset": 53908867,
+          "offset": 54351235,
           "size": 221184
         },
         "a91": {
           "name": "a91",
-          "offset": 54130051,
+          "offset": 55014787,
           "size": 221184
         },
         "a92": {
           "name": "a92",
-          "offset": 42407299,
+          "offset": 44176771,
           "size": 1769472
         },
         "a93": {
           "name": "a93",
-          "offset": 49927555,
+          "offset": 50369923,
           "size": 442368
         },
         "a94": {
           "name": "a94",
-          "offset": 50369923,
+          "offset": 50812291,
           "size": 442368
         },
         "a95": {
@@ -3211,12 +3226,12 @@
         },
         "a96": {
           "name": "a96",
-          "offset": 48600451,
+          "offset": 45946243,
           "size": 884736
         },
         "a97": {
           "name": "a97",
-          "offset": 45946243,
+          "offset": 46830979,
           "size": 884736
         },
         "a98": {
@@ -3226,12 +3241,12 @@
         },
         "a99": {
           "name": "a99",
-          "offset": 55540099,
+          "offset": 56341891,
           "size": 82944
         },
         "a46": {
           "name": "a46",
-          "offset": 55623043,
+          "offset": 56507779,
           "size": 82944
         },
         "a1": {
@@ -3442,12 +3457,12 @@
         "a42": {
           "name": "a42",
           "offset": 1820032,
-          "size": 3
+          "size": 82944
         },
         "a43": {
           "name": "a43",
-          "offset": 1820035,
-          "size": 82944
+          "offset": 1902976,
+          "size": 3
         },
         "a44": {
           "name": "a44",

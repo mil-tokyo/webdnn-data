@@ -2,87 +2,87 @@
 #include <stdlib.h>
 #include <math.h>
 
-float static_buffer[2576363];
+float static_buffer[9581619];
 float* dynamic_buffer = nullptr;
 
-int meta_buf_0[] = {2427176,2088488,1,3,223,223,112,112,3,3,1,1,2,2,1,1};
-int meta_buf_1[] = {2088488,0,1235496,12544,64,27};
-int meta_buf_2[] = {1728,1235496,1235496,64,64,64,12544};
-int meta_buf_3[] = {1235496,2088488,1,112,112,64,56,56,2,2,2,2,0,0};
-int meta_buf_4[] = {2088488,1792,2289192,3136,16,64};
-int meta_buf_5[] = {2816,2289192,2289192,16,16,16,3136};
-int meta_buf_6[] = {2289192,2832,1887784,3136,64,16};
-int meta_buf_7[] = {3856,1887784,1887784,64,64,64,3136};
-int meta_buf_8[] = {2289192,1235496,1,16,56,56,56,56,3,3,1,1,1,1,1,1};
-int meta_buf_9[] = {1235496,3920,2088488,3136,64,144};
-int meta_buf_10[] = {13136,2088488,1687080,64,64,64,3136};
-int meta_buf_11[] = {1235496,4,2,1887784,1687080,1,1,401408,7168,128,1,401408,7168,128,1,1,56,56,64,1,56,56,64,0,64};
-int meta_buf_12[] = {1235496,13200,1887784,3136,16,128};
-int meta_buf_13[] = {15248,1887784,1937960,16,16,16,3136};
-int meta_buf_14[] = {1937960,15264,1687080,3136,64,16};
-int meta_buf_15[] = {16288,1687080,1687080,64,64,64,3136};
-int meta_buf_16[] = {1937960,1235496,1,16,56,56,56,56,3,3,1,1,1,1,1,1};
-int meta_buf_17[] = {1235496,16352,2088488,3136,64,144};
-int meta_buf_18[] = {25568,2088488,2088488,64,64,64,3136};
-int meta_buf_19[] = {1235496,4,2,1687080,2088488,1,1,401408,7168,128,1,401408,7168,128,1,1,56,56,64,1,56,56,64,0,64};
-int meta_buf_20[] = {1235496,1887784,1,56,56,128,28,28,2,2,2,2,0,0};
-int meta_buf_21[] = {1887784,25632,2000680,784,32,128};
-int meta_buf_22[] = {29728,2000680,2377000,32,32,32,784};
-int meta_buf_23[] = {2377000,29760,1887784,784,128,32};
-int meta_buf_24[] = {33856,1887784,2088488,128,128,128,784};
-int meta_buf_25[] = {2377000,1235496,1,32,28,28,28,28,3,3,1,1,1,1,1,1};
-int meta_buf_26[] = {1235496,33984,2188840,784,128,288};
-int meta_buf_27[] = {70848,2188840,1887784,128,128,128,784};
-int meta_buf_28[] = {1687080,4,2,2088488,1887784,1,1,200704,7168,256,1,200704,7168,256,1,1,28,28,128,1,28,28,128,0,128};
-int meta_buf_29[] = {1687080,70976,2377000,784,32,256};
-int meta_buf_30[] = {79168,2377000,2000680,32,32,32,784};
-int meta_buf_31[] = {2000680,79200,1887784,784,128,32};
-int meta_buf_32[] = {83296,1887784,1887784,128,128,128,784};
-int meta_buf_33[] = {2000680,1235496,1,32,28,28,28,28,3,3,1,1,1,1,1,1};
-int meta_buf_34[] = {1235496,83424,2088488,784,128,288};
-int meta_buf_35[] = {120288,2088488,2088488,128,128,128,784};
-int meta_buf_36[] = {1235496,4,2,1887784,2088488,1,1,200704,7168,256,1,200704,7168,256,1,1,28,28,128,1,28,28,128,0,128};
-int meta_buf_37[] = {1235496,1887784,1,28,28,256,14,14,2,2,2,2,0,0};
-int meta_buf_38[] = {1887784,120416,2025768,196,48,256};
-int meta_buf_39[] = {132704,2025768,2414632,48,48,48,196};
-int meta_buf_40[] = {2414632,132752,2377000,196,192,48};
-int meta_buf_41[] = {141968,2377000,2377000,192,192,192,196};
-int meta_buf_42[] = {2414632,1887784,1,48,14,14,14,14,3,3,1,1,1,1,1,1};
-int meta_buf_43[] = {1887784,142160,2000680,196,192,432};
-int meta_buf_44[] = {225104,2000680,1963048,192,192,192,196};
-int meta_buf_45[] = {1887784,4,2,2377000,1963048,1,1,75264,5376,384,1,75264,5376,384,1,1,14,14,192,1,14,14,192,0,192};
-int meta_buf_46[] = {1887784,225296,2025768,196,48,384};
-int meta_buf_47[] = {243728,2025768,2025768,48,48,48,196};
-int meta_buf_48[] = {2025768,243776,2339368,196,192,48};
-int meta_buf_49[] = {252992,2339368,2339368,192,192,192,196};
-int meta_buf_50[] = {2025768,1887784,1,48,14,14,14,14,3,3,1,1,1,1,1,1};
-int meta_buf_51[] = {1887784,253184,2000680,196,192,432};
-int meta_buf_52[] = {336128,2000680,2377000,192,192,192,196};
-int meta_buf_53[] = {1887784,4,2,2339368,2377000,1,1,75264,5376,384,1,75264,5376,384,1,1,14,14,192,1,14,14,192,0,192};
-int meta_buf_54[] = {1887784,336320,2013224,196,64,384};
-int meta_buf_55[] = {360896,2013224,2025768,64,64,64,196};
-int meta_buf_56[] = {2025768,360960,2289192,196,256,64};
-int meta_buf_57[] = {377344,2289192,2289192,256,256,256,196};
-int meta_buf_58[] = {2025768,1887784,1,64,14,14,14,14,3,3,1,1,1,1,1,1};
-int meta_buf_59[] = {1887784,377600,2188840,196,256,576};
-int meta_buf_60[] = {525056,2188840,2188840,256,256,256,196};
-int meta_buf_61[] = {1887784,4,2,2289192,2188840,1,1,100352,7168,512,1,100352,7168,512,1,1,14,14,256,1,14,14,256,0,256};
-int meta_buf_62[] = {1887784,525312,2000680,196,64,512};
-int meta_buf_63[] = {558080,2000680,2013224,64,64,64,196};
-int meta_buf_64[] = {2013224,558144,1887784,196,256,64};
-int meta_buf_65[] = {574528,1887784,2339368,256,256,256,196};
-int meta_buf_66[] = {2013224,1887784,1,64,14,14,14,14,3,3,1,1,1,1,1,1};
-int meta_buf_67[] = {1887784,574784,2289192,196,256,576};
-int meta_buf_68[] = {722240,2289192,2289192,256,256,256,196};
-int meta_buf_69[] = {1887784,4,2,2339368,2289192,1,1,100352,7168,512,1,100352,7168,512,1,1,14,14,256,1,14,14,256,0,256};
-int meta_buf_70[] = {1887784,722496,1687080,196,1000,512};
-int meta_buf_71[] = {1234496,1687080,1687080,1000,1000,1000,196};
-int meta_buf_72[] = {1687080,2025768,1,14,14,1000,1,1,14,14,14,14,0,0};
-int meta_buf_73[] = {2025768,2025768,1,1000};
+int meta_buf_0[] = {7139016,4547112,1,3,223,223,112,112,3,3,1,1,2,2,1,1};
+int meta_buf_1[] = {4547112,0,1235496,12544,64,27};
+int meta_buf_2[] = {1728,1235496,2038312,64,64,64,12544};
+int meta_buf_3[] = {2038312,5738792,1,112,112,64,56,56,2,2,2,2,0,0};
+int meta_buf_4[] = {5738792,1792,8837387,3136,16,64};
+int meta_buf_5[] = {2816,8837387,8837387,16,16,16,3136};
+int meta_buf_6[] = {8837387,2832,5939496,3136,64,16};
+int meta_buf_7[] = {3856,5939496,5939496,64,64,64,3136};
+int meta_buf_8[] = {8837387,3292712,1,16,56,56,56,56,3,3,1,1,1,1,1,1};
+int meta_buf_9[] = {3292712,3920,6340904,3136,64,144};
+int meta_buf_10[] = {13136,6340904,6742312,64,64,64,3136};
+int meta_buf_11[] = {4145704,4,2,5939496,6742312,1,1,401408,7168,128,1,401408,7168,128,1,1,56,56,64,1,56,56,64,0,64};
+int meta_buf_12[] = {4145704,13200,9038091,3136,16,128};
+int meta_buf_13[] = {15248,9038091,9138443,16,16,16,3136};
+int meta_buf_14[] = {9138443,15264,6140200,3136,64,16};
+int meta_buf_15[] = {16288,6140200,6140200,64,64,64,3136};
+int meta_buf_16[] = {9138443,2841128,1,16,56,56,56,56,3,3,1,1,1,1,1,1};
+int meta_buf_17[] = {2841128,16352,5337384,3136,64,144};
+int meta_buf_18[] = {25568,5337384,5337384,64,64,64,3136};
+int meta_buf_19[] = {3744296,4,2,6140200,5337384,1,1,401408,7168,128,1,401408,7168,128,1,1,56,56,64,1,56,56,64,0,64};
+int meta_buf_20[] = {3744296,7815051,1,56,56,128,28,28,2,2,2,2,0,0};
+int meta_buf_21[] = {7815051,25632,9452043,784,32,128};
+int meta_buf_22[] = {29728,9452043,9452043,32,32,32,784};
+int meta_buf_23[] = {9452043,29760,7915403,784,128,32};
+int meta_buf_24[] = {33856,7915403,7915403,128,128,128,784};
+int meta_buf_25[] = {9452043,5111592,1,32,28,28,28,28,3,3,1,1,1,1,1,1};
+int meta_buf_26[] = {5111592,33984,8015755,784,128,288};
+int meta_buf_27[] = {70848,8015755,8015755,128,128,128,784};
+int meta_buf_28[] = {6541608,4,2,7915403,8015755,1,1,200704,7168,256,1,200704,7168,256,1,1,28,28,128,1,28,28,128,0,128};
+int meta_buf_29[] = {6541608,70976,9477131,784,32,256};
+int meta_buf_30[] = {79168,9477131,9477131,32,32,32,784};
+int meta_buf_31[] = {9477131,79200,8216459,784,128,32};
+int meta_buf_32[] = {83296,8216459,8216459,128,128,128,784};
+int meta_buf_33[] = {9477131,4885800,1,32,28,28,28,28,3,3,1,1,1,1,1,1};
+int meta_buf_34[] = {4885800,83424,7614347,784,128,288};
+int meta_buf_35[] = {120288,7614347,7714699,128,128,128,784};
+int meta_buf_36[] = {5538088,4,2,8216459,7714699,1,1,200704,7168,256,1,200704,7168,256,1,1,28,28,128,1,28,28,128,0,128};
+int meta_buf_37[] = {5538088,8686859,1,28,28,256,14,14,2,2,2,2,0,0};
+int meta_buf_38[] = {8686859,120416,9552395,196,48,256};
+int meta_buf_39[] = {132704,9552395,9552395,48,48,48,196};
+int meta_buf_40[] = {9552395,132752,9263883,196,192,48};
+int meta_buf_41[] = {141968,9263883,9263883,192,192,192,196};
+int meta_buf_42[] = {9552395,8401483,1,48,14,14,14,14,3,3,1,1,1,1,1,1};
+int meta_buf_43[] = {8401483,142160,9301515,196,192,432};
+int meta_buf_44[] = {225104,9301515,9339147,192,192,192,196};
+int meta_buf_45[] = {8561419,4,2,9263883,9339147,1,1,75264,5376,384,1,75264,5376,384,1,1,14,14,192,1,14,14,192,0,192};
+int meta_buf_46[] = {8561419,225296,9561803,196,48,384};
+int meta_buf_47[] = {243728,9561803,9571211,48,48,48,196};
+int meta_buf_48[] = {9571211,243776,9414411,196,192,48};
+int meta_buf_49[] = {252992,9414411,9376779,192,192,192,196};
+int meta_buf_50[] = {9571211,8316811,1,48,14,14,14,14,3,3,1,1,1,1,1,1};
+int meta_buf_51[] = {8316811,253184,9188619,196,192,432};
+int meta_buf_52[] = {336128,9188619,9226251,192,192,192,196};
+int meta_buf_53[] = {8486155,4,2,9376779,9226251,1,1,75264,5376,384,1,75264,5376,384,1,1,14,14,192,1,14,14,192,0,192};
+int meta_buf_54[] = {8486155,336320,9502219,196,64,384};
+int meta_buf_55[] = {360896,9502219,9514763,64,64,64,196};
+int meta_buf_56[] = {9514763,360960,8737035,196,256,64};
+int meta_buf_57[] = {377344,8737035,8787211,256,256,256,196};
+int meta_buf_58[] = {9514763,7288203,1,64,14,14,14,14,3,3,1,1,1,1,1,1};
+int meta_buf_59[] = {7288203,377600,8887563,196,256,576};
+int meta_buf_60[] = {525056,8887563,8887563,256,256,256,196};
+int meta_buf_61[] = {8116107,4,2,8787211,8887563,1,1,100352,7168,512,1,100352,7168,512,1,1,14,14,256,1,14,14,256,0,256};
+int meta_buf_62[] = {8116107,525312,9527307,196,64,512};
+int meta_buf_63[] = {558080,9527307,9539851,64,64,64,196};
+int meta_buf_64[] = {9539851,558144,8937739,196,256,64};
+int meta_buf_65[] = {574528,8937739,8987915,256,256,256,196};
+int meta_buf_66[] = {9539851,7401099,1,64,14,14,14,14,3,3,1,1,1,1,1,1};
+int meta_buf_67[] = {7401099,574784,9088267,196,256,576};
+int meta_buf_68[] = {722240,9088267,8636683,256,256,256,196};
+int meta_buf_69[] = {7513995,4,2,8987915,8636683,1,1,100352,7168,512,1,100352,7168,512,1,1,14,14,256,1,14,14,256,0,256};
+int meta_buf_70[] = {7513995,722496,6943016,196,1000,512};
+int meta_buf_71[] = {1234496,6943016,6943016,1000,1000,1000,196};
+int meta_buf_72[] = {6943016,9580619,1,14,14,1000,1,1,14,14,14,14,0,0};
+int meta_buf_73[] = {9580619,9580619,1,1000};
 int* meta_buffers[] = {meta_buf_0,meta_buf_1,meta_buf_2,meta_buf_3,meta_buf_4,meta_buf_5,meta_buf_6,meta_buf_7,meta_buf_8,meta_buf_9,meta_buf_10,meta_buf_11,meta_buf_12,meta_buf_13,meta_buf_14,meta_buf_15,meta_buf_16,meta_buf_17,meta_buf_18,meta_buf_19,meta_buf_20,meta_buf_21,meta_buf_22,meta_buf_23,meta_buf_24,meta_buf_25,meta_buf_26,meta_buf_27,meta_buf_28,meta_buf_29,meta_buf_30,meta_buf_31,meta_buf_32,meta_buf_33,meta_buf_34,meta_buf_35,meta_buf_36,meta_buf_37,meta_buf_38,meta_buf_39,meta_buf_40,meta_buf_41,meta_buf_42,meta_buf_43,meta_buf_44,meta_buf_45,meta_buf_46,meta_buf_47,meta_buf_48,meta_buf_49,meta_buf_50,meta_buf_51,meta_buf_52,meta_buf_53,meta_buf_54,meta_buf_55,meta_buf_56,meta_buf_57,meta_buf_58,meta_buf_59,meta_buf_60,meta_buf_61,meta_buf_62,meta_buf_63,meta_buf_64,meta_buf_65,meta_buf_66,meta_buf_67,meta_buf_68,meta_buf_69,meta_buf_70,meta_buf_71,meta_buf_72,meta_buf_73};
 
 extern "C" void init() {
-    //static_buffer = (float*)malloc(2576363 * sizeof(float));
+    //static_buffer = (float*)malloc(9581619 * sizeof(float));
 }
 
 extern "C" float* get_static_buffer(void) {
@@ -105,7 +105,7 @@ extern "C" void set_placeholder_value(int kernel_order, int offset, int value) {
     meta_buffers[kernel_order][offset] = value;
 }
 
-void im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(const int * meta_buffer)
+void im2col_54f86552263d1a348fd988a8122143d1a6ec1c1aa7867ba5833442fb(const int * meta_buffer)
 {
     const float *im = (static_buffer + meta_buffer[0]);
     float *col = (static_buffer + meta_buffer[1]);
@@ -132,7 +132,7 @@ void im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(const int *
         const int w2 = gid / C1 / KW / KH % W2;
         const int h2 = gid / C1 / KW / KH / W2 % H2;
         const int  n = gid / C1 / KW / KH / W2 / H2;
-        
+
         const int h1 = h2 * SH - PH + kh * DH;
         const int w1 = w2 * SW - PW + kw * DW;
 
@@ -146,14 +146,14 @@ void im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(const int *
 #include <Eigen/Dense>
 #endif
 
-void sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(const int * meta_buffer)
+void tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(const int * meta_buffer)
 {
     float *A = (static_buffer + meta_buffer[0]);
     float *B = (static_buffer + meta_buffer[1]);
     float *C = (static_buffer + meta_buffer[2]);
 
     Eigen::Map<Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > a_mat(A, meta_buffer[3], meta_buffer[5]);
-    Eigen::Map<Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > b_mat(B, meta_buffer[5], meta_buffer[4]);
+    Eigen::Map<Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor> > b_mat(B, meta_buffer[5], meta_buffer[4]);
     Eigen::Map<Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > c_mat(C, meta_buffer[3], meta_buffer[4]);
 
     c_mat.noalias() = a_mat * b_mat;
@@ -189,7 +189,7 @@ void fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(c
 }
 
 
-void maxpooling2d_6f91142d9d2142f2bf5f971bbd42a9177ff9f0a3847ed38923b3b331(const int * meta_buffer)
+void maxpooling2d_386ebef75ea973afd833e12e5ea8f6c97456944cd3812afb94b9bb4e(const int * meta_buffer)
 {
     const float *X = (static_buffer + meta_buffer[0]);
     float *Y = (static_buffer + meta_buffer[1]);
@@ -216,7 +216,7 @@ void maxpooling2d_6f91142d9d2142f2bf5f971bbd42a9177ff9f0a3847ed38923b3b331(const
         for (int kh = 0; kh < KH; kh++) {
             const int h1 = h2 * SH - PH + kh;
             if (h1 < 0 || h1 >= H1) continue;
-            
+
             for (int kw = 0; kw < KW; kw++) {
                 const int w1 = w2 * SW - PW + kw;
                 if (w1 < 0 || w1 >= W1) continue;
@@ -230,7 +230,7 @@ void maxpooling2d_6f91142d9d2142f2bf5f971bbd42a9177ff9f0a3847ed38923b3b331(const
 }
 
 
-void concat_7d93c94d0d8cf6221275a915863ab6c2a3c5444b9d2d3cb83d03d467(const int * meta_buffer)
+void concat_9dc48661f18df861021d8647f2b13b42a014c55639541640b11390e0(const int * meta_buffer)
 {
     float *y = (static_buffer + meta_buffer[0]);
     const int N = meta_buffer[2];
@@ -238,33 +238,33 @@ void concat_7d93c94d0d8cf6221275a915863ab6c2a3c5444b9d2d3cb83d03d467(const int *
     const int *y_offsets = (&(meta_buffer[23]));
     const int *x_shapes = (&(meta_buffer[15]));
     const int *x_strides_in_y = (&(meta_buffer[7]));
-    
+
     int x_index = 0;
-    
+
     for (int n = 0; n < N; n++) {
-        const float *x = (meta_buffer[3+2+ (n)] ? static_buffer : dynamic_buffer) + meta_buffer[3 + (n)];
+        const float *x = (meta_buffer[3+2+(n)]?static_buffer:dynamic_buffer) + meta_buffer[3 + (n)];
         const int y_offset = y_offsets[n];
         const int *x_shape = x_shapes + n * D;
         const int *x_stride_in_y = x_strides_in_y + n * D;
-        
+
         int x_size = 1;
         for (int d = 0; d < D; d++) {
             x_size *= x_shape[d];
         }
-        
-        while (x_index < x_size) { 
+
+        while (x_index < x_size) {
             int y_index = y_offset;
             int s = x_index;
             for (int d = D-1; d >= 0; d--) {
                 y_index += x_stride_in_y[d] * (s % x_shape[d]);
                 s /= x_shape[d];
             }
-        
+
             y[y_index] = x[x_index];
-            
+
             x_index++;
         }
-        
+
         x_index -= x_size;
     }
 }
@@ -295,7 +295,7 @@ void elementwiseadd_2b50fc92cd4fd19f86f0b848dcf82aad36e4cb2719773776962a15c5(con
 }
 
 
-void averagepooling2d_0dbf99a782fff01a6fc6f857e42168c01fb90520d3d4151eba450a23(const int * meta_buffer)
+void averagepooling2d_315133a9f01ff68a853da10590f9591258950d2d5ab8b7bac49ab0ea(const int * meta_buffer)
 {
     const float *X = (static_buffer + meta_buffer[0]);
     float *Y = (static_buffer + meta_buffer[1]);
@@ -305,14 +305,14 @@ void averagepooling2d_0dbf99a782fff01a6fc6f857e42168c01fb90520d3d4151eba450a23(c
     const int C = meta_buffer[5];
     const int H2 = meta_buffer[6];
     const int W2 = meta_buffer[7];
-    
+
     const int KH = meta_buffer[8];
     const int KW = meta_buffer[9];
     const int SH = meta_buffer[10];
     const int SW = meta_buffer[11];
     const int PH = meta_buffer[12];
     const int PW = meta_buffer[13];
-    
+
     for (int gid = 0; gid < N * H2 * W2 * C; gid += 1) {
         const int c = gid % C;
         const int w2 = gid / C % W2;
@@ -320,15 +320,17 @@ void averagepooling2d_0dbf99a782fff01a6fc6f857e42168c01fb90520d3d4151eba450a23(c
         const int n = gid / C / W2 / H2;
 
         float v = 0;
+        
         for (int kh = 0; kh < KH; kh++) {
             const int h1 = h2 * SH - PH + kh;
             if (h1 < 0 || h1 >= H1) continue;
-            
+
             for (int kw = 0; kw < KW; kw++) {
                 const int w1 = w2 * SW - PW + kw;
                 if (w1 < 0 || w1 >= W1) continue;
 
                 v += X[((n * H1 + h1) * W1 + w1) * C + c];
+                
             }
         }
         v /= KH * KW;
@@ -369,79 +371,79 @@ void softmax_be4c2fae32b9326b0ca891226ac9234de828aecba508a30394d8a57e(const int 
 }
 
 extern "C" void run() {
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_0);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_1);
+im2col_54f86552263d1a348fd988a8122143d1a6ec1c1aa7867ba5833442fb(meta_buf_0);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_1);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_2);
-maxpooling2d_6f91142d9d2142f2bf5f971bbd42a9177ff9f0a3847ed38923b3b331(meta_buf_3);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_4);
+maxpooling2d_386ebef75ea973afd833e12e5ea8f6c97456944cd3812afb94b9bb4e(meta_buf_3);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_4);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_5);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_6);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_6);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_7);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_8);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_9);
+im2col_54f86552263d1a348fd988a8122143d1a6ec1c1aa7867ba5833442fb(meta_buf_8);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_9);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_10);
-concat_7d93c94d0d8cf6221275a915863ab6c2a3c5444b9d2d3cb83d03d467(meta_buf_11);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_12);
+concat_9dc48661f18df861021d8647f2b13b42a014c55639541640b11390e0(meta_buf_11);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_12);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_13);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_14);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_14);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_15);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_16);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_17);
+im2col_54f86552263d1a348fd988a8122143d1a6ec1c1aa7867ba5833442fb(meta_buf_16);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_17);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_18);
-concat_7d93c94d0d8cf6221275a915863ab6c2a3c5444b9d2d3cb83d03d467(meta_buf_19);
-maxpooling2d_6f91142d9d2142f2bf5f971bbd42a9177ff9f0a3847ed38923b3b331(meta_buf_20);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_21);
+concat_9dc48661f18df861021d8647f2b13b42a014c55639541640b11390e0(meta_buf_19);
+maxpooling2d_386ebef75ea973afd833e12e5ea8f6c97456944cd3812afb94b9bb4e(meta_buf_20);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_21);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_22);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_23);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_23);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_24);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_25);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_26);
+im2col_54f86552263d1a348fd988a8122143d1a6ec1c1aa7867ba5833442fb(meta_buf_25);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_26);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_27);
-concat_7d93c94d0d8cf6221275a915863ab6c2a3c5444b9d2d3cb83d03d467(meta_buf_28);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_29);
+concat_9dc48661f18df861021d8647f2b13b42a014c55639541640b11390e0(meta_buf_28);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_29);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_30);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_31);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_31);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_32);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_33);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_34);
+im2col_54f86552263d1a348fd988a8122143d1a6ec1c1aa7867ba5833442fb(meta_buf_33);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_34);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_35);
-concat_7d93c94d0d8cf6221275a915863ab6c2a3c5444b9d2d3cb83d03d467(meta_buf_36);
-maxpooling2d_6f91142d9d2142f2bf5f971bbd42a9177ff9f0a3847ed38923b3b331(meta_buf_37);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_38);
+concat_9dc48661f18df861021d8647f2b13b42a014c55639541640b11390e0(meta_buf_36);
+maxpooling2d_386ebef75ea973afd833e12e5ea8f6c97456944cd3812afb94b9bb4e(meta_buf_37);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_38);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_39);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_40);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_40);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_41);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_42);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_43);
+im2col_54f86552263d1a348fd988a8122143d1a6ec1c1aa7867ba5833442fb(meta_buf_42);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_43);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_44);
-concat_7d93c94d0d8cf6221275a915863ab6c2a3c5444b9d2d3cb83d03d467(meta_buf_45);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_46);
+concat_9dc48661f18df861021d8647f2b13b42a014c55639541640b11390e0(meta_buf_45);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_46);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_47);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_48);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_48);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_49);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_50);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_51);
+im2col_54f86552263d1a348fd988a8122143d1a6ec1c1aa7867ba5833442fb(meta_buf_50);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_51);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_52);
-concat_7d93c94d0d8cf6221275a915863ab6c2a3c5444b9d2d3cb83d03d467(meta_buf_53);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_54);
+concat_9dc48661f18df861021d8647f2b13b42a014c55639541640b11390e0(meta_buf_53);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_54);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_55);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_56);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_56);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_57);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_58);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_59);
+im2col_54f86552263d1a348fd988a8122143d1a6ec1c1aa7867ba5833442fb(meta_buf_58);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_59);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_60);
-concat_7d93c94d0d8cf6221275a915863ab6c2a3c5444b9d2d3cb83d03d467(meta_buf_61);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_62);
+concat_9dc48661f18df861021d8647f2b13b42a014c55639541640b11390e0(meta_buf_61);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_62);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_63);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_64);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_64);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_65);
-im2col_1dc147a294d043a7b2199b007777978656dfb88774a7a9bb20a1039c(meta_buf_66);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_67);
+im2col_54f86552263d1a348fd988a8122143d1a6ec1c1aa7867ba5833442fb(meta_buf_66);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_67);
 fusedelementwise_39f491a753592bd6d9a83c6f76917012b5eb3c0ac597e095aa174319(meta_buf_68);
-concat_7d93c94d0d8cf6221275a915863ab6c2a3c5444b9d2d3cb83d03d467(meta_buf_69);
-sgemm_49ee440e78a4467f5e364896610c9bdbdd5dbf08d70b98a210d579d8(meta_buf_70);
+concat_9dc48661f18df861021d8647f2b13b42a014c55639541640b11390e0(meta_buf_69);
+tensordot_b0c87b9ad9c24d5c638538a68fd9e1ad2b472c70c0e98883fad5c6af(meta_buf_70);
 elementwiseadd_2b50fc92cd4fd19f86f0b848dcf82aad36e4cb2719773776962a15c5(meta_buf_71);
-averagepooling2d_0dbf99a782fff01a6fc6f857e42168c01fb90520d3d4151eba450a23(meta_buf_72);
+averagepooling2d_315133a9f01ff68a853da10590f9591258950d2d5ab8b7bac49ab0ea(meta_buf_72);
 softmax_be4c2fae32b9326b0ca891226ac9234de828aecba508a30394d8a57e(meta_buf_73);
 
 }

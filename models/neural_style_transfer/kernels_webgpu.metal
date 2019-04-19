@@ -71,7 +71,7 @@ kernel void im2col_9b539f2f74232353e897aa9134c69cfa1ee49d2b6fa3daf025ab98c3(devi
 }
 
 
-kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(device float * static_buffer[[buffer(0)]],
+kernel void tensordot_9d895cd7f9fb7f03b33f81c62b72615e90d48dc2748ce9a7d0fe1490(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint index[[thread_index_in_threadgroup]],
@@ -88,12 +88,12 @@ kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(d
 #define B_STRIDE_N 1
 
 #if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64 && OPTIMIZE
-    const device float4 *load_target4 = (index & 32) 
-        ? (const device float4 *)((static_buffer + meta_buffer[1])) 
+    const device float4 *load_target4 = (index & 32)
+        ? (const device float4 *)((static_buffer + meta_buffer[1]))
         : (const device float4 *)((static_buffer + meta_buffer[0]));
 #else
-    const device float *load_target = (index & 32) 
-        ? ((static_buffer + meta_buffer[1])) 
+    const device float *load_target = (index & 32)
+        ? ((static_buffer + meta_buffer[1]))
         : ((static_buffer + meta_buffer[0]));
 #endif
 
@@ -145,25 +145,25 @@ kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(d
                 load_target[track0 + stride_mn * 1],
                 load_target[track0 + stride_mn * 2],
                 load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 load_target[track2 + stride_mn * 0],
                 load_target[track2 + stride_mn * 1],
                 load_target[track2 + stride_mn * 2],
                 load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 load_target[track4 + stride_mn * 0],
                 load_target[track4 + stride_mn * 1],
                 load_target[track4 + stride_mn * 2],
                 load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 load_target[track6 + stride_mn * 0],
                 load_target[track6 + stride_mn * 1],
                 load_target[track6 + stride_mn * 2],
                 load_target[track6 + stride_mn * 3]
-            ); 
+            );
         #endif
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -171,25 +171,25 @@ kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(d
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
     #endif
 
             k += 8;
@@ -200,7 +200,7 @@ kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(d
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -208,7 +208,7 @@ kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(d
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -216,7 +216,7 @@ kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(d
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -224,7 +224,7 @@ kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(d
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -232,7 +232,7 @@ kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(d
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -240,7 +240,7 @@ kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(d
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -248,7 +248,7 @@ kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(d
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -256,7 +256,7 @@ kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(d
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #endif
 #endif
@@ -352,7 +352,7 @@ kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(d
     }
 
     {
-    
+
 #if OPTIMIZE && N_DIVIDABLE_BY_64
         device float4 *C4 = (device float4 *)((static_buffer + meta_buffer[2]));
         const int N4 = N >> 2;
@@ -370,7 +370,7 @@ kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(d
 
             C4[m * N4 + n + 0] = result0;
             C4[m * N4 + n + 1] = result1;
-            
+
             m++;
         }
 #else
@@ -393,7 +393,7 @@ kernel void tensordot_ed38d0a344d79c0b14455961d5ec2e343b57d115acf2464ba3e25720(d
                     n++;
                 }
             }
-            
+
             m++;
         }
 #endif
@@ -455,7 +455,7 @@ kernel void fusedelementwise_a2a930f4af84e50dafd992d1d0ad7d711a096597302d47acf9a
 }
 
 
-kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(device float * static_buffer[[buffer(0)]],
+kernel void tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint index[[thread_index_in_threadgroup]],
@@ -472,12 +472,12 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
 #define B_STRIDE_N 1
 
 #if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64 && OPTIMIZE
-    const device float4 *load_target4 = (index & 32) 
-        ? (const device float4 *)((static_buffer + meta_buffer[1])) 
+    const device float4 *load_target4 = (index & 32)
+        ? (const device float4 *)((static_buffer + meta_buffer[1]))
         : (const device float4 *)((static_buffer + meta_buffer[0]));
 #else
-    const device float *load_target = (index & 32) 
-        ? ((static_buffer + meta_buffer[1])) 
+    const device float *load_target = (index & 32)
+        ? ((static_buffer + meta_buffer[1]))
         : ((static_buffer + meta_buffer[0]));
 #endif
 
@@ -529,25 +529,25 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
                 load_target[track0 + stride_mn * 1],
                 load_target[track0 + stride_mn * 2],
                 load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 load_target[track2 + stride_mn * 0],
                 load_target[track2 + stride_mn * 1],
                 load_target[track2 + stride_mn * 2],
                 load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 load_target[track4 + stride_mn * 0],
                 load_target[track4 + stride_mn * 1],
                 load_target[track4 + stride_mn * 2],
                 load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 load_target[track6 + stride_mn * 0],
                 load_target[track6 + stride_mn * 1],
                 load_target[track6 + stride_mn * 2],
                 load_target[track6 + stride_mn * 3]
-            ); 
+            );
         #endif
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -555,25 +555,25 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
     #endif
 
             k += 8;
@@ -584,7 +584,7 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -592,7 +592,7 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -600,7 +600,7 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -608,7 +608,7 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -616,7 +616,7 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -624,7 +624,7 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -632,7 +632,7 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -640,7 +640,7 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #endif
 #endif
@@ -736,7 +736,7 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
     }
 
     {
-    
+
 #if OPTIMIZE && N_DIVIDABLE_BY_64
         device float4 *C4 = (device float4 *)((static_buffer + meta_buffer[2]));
         const int N4 = N >> 2;
@@ -754,7 +754,7 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
 
             C4[m * N4 + n + 0] = result0;
             C4[m * N4 + n + 1] = result1;
-            
+
             m++;
         }
 #else
@@ -777,7 +777,7 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
                     n++;
                 }
             }
-            
+
             m++;
         }
 #endif
@@ -794,52 +794,7 @@ kernel void tensordot_74743883ba5e1160bdaa8a691d9af958a540438b166f8b39f66d09c4(d
 }
 
 
-kernel void fusedelementwise_855ad3208167b85cd53ecff129502284363603cb8bd77639f64c5c88(device float * static_buffer[[buffer(0)]],
-                          device float * dynamic_buffer[[buffer(1)]],
-                          const device int * meta_buffer [[buffer(2)]],
-                          uint gid[[thread_position_in_grid]],
-                          uint num_threads[[threads_per_grid]])
-{
-    const device float * v1 = (static_buffer + meta_buffer[0]);
-    const device float * v2 = (static_buffer + meta_buffer[1]);
-    const device float * v3 = (static_buffer + meta_buffer[2]);
-    const device float * v4 = (static_buffer + meta_buffer[3]);
-    device float * v5 = (static_buffer + meta_buffer[4]);
-    const int v6 = meta_buffer[5];
-    const int v7 = meta_buffer[6];
-    const int D0 = meta_buffer[7];
-    const int D1 = meta_buffer[8];
-    int d0;
-    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {
-        const float v8 = v1[d0];
-        const float v9 = v2[d0];
-        const float v10 = v3[d0];
-        int d1;
-        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {
-            const float v11 = v4[d0 + d1*v6];
-            float v12;
-            {
-                v12 = v11 + v10;
-            }
-            float v13;
-            {
-                v13 = v12 < 0.0 ? (exp(v12)-1) : v12;
-            }
-            float v14;
-            {
-                v14 = v13 * v9;
-            }
-            float v15;
-            {
-                v15 = v14 + v8;
-            }
-            v5[d0 + d1*v7] = v15;
-        }
-    }
-}
-
-
-kernel void fusedelementwise_af13236dc2a3b1e840f85fbb0a525534ef08be1bc7155583411cf2a0(device float * static_buffer[[buffer(0)]],
+kernel void fusedelementwise_d7553b29522557c8b64d2cc04d156a5f40027c86aac90f5130c7fadd(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint gid[[thread_position_in_grid]],
@@ -872,11 +827,56 @@ kernel void fusedelementwise_af13236dc2a3b1e840f85fbb0a525534ef08be1bc7155583411
             }
             float v14;
             {
-                v14 = v13 * v8;
+                v14 = v13 * v10;
             }
             float v15;
             {
-                v15 = v14 + v10;
+                v15 = v14 + v8;
+            }
+            v5[d0 + d1*v7] = v15;
+        }
+    }
+}
+
+
+kernel void fusedelementwise_cd9c38b832bb6cfabb3e178e30805e9e46f868d7e2eda733374e5554(device float * static_buffer[[buffer(0)]],
+                          device float * dynamic_buffer[[buffer(1)]],
+                          const device int * meta_buffer [[buffer(2)]],
+                          uint gid[[thread_position_in_grid]],
+                          uint num_threads[[threads_per_grid]])
+{
+    const device float * v1 = (static_buffer + meta_buffer[0]);
+    const device float * v2 = (static_buffer + meta_buffer[1]);
+    const device float * v3 = (static_buffer + meta_buffer[2]);
+    const device float * v4 = (static_buffer + meta_buffer[3]);
+    device float * v5 = (static_buffer + meta_buffer[4]);
+    const int v6 = meta_buffer[5];
+    const int v7 = meta_buffer[6];
+    const int D0 = meta_buffer[7];
+    const int D1 = meta_buffer[8];
+    int d0;
+    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {
+        const float v8 = v1[d0];
+        const float v9 = v2[d0];
+        const float v10 = v3[d0];
+        int d1;
+        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {
+            const float v11 = v4[d0 + d1*v6];
+            float v12;
+            {
+                v12 = v11 + v9;
+            }
+            float v13;
+            {
+                v13 = v12 < 0.0 ? (exp(v12)-1) : v12;
+            }
+            float v14;
+            {
+                v14 = v13 * v10;
+            }
+            float v15;
+            {
+                v15 = v14 + v8;
             }
             v5[d0*v7 + d1] = v15;
         }
@@ -953,7 +953,43 @@ kernel void fusedelementwise_7560b5d8803146c39c48e815ea3893668f38d9cc141ac1762de
 }
 
 
-kernel void col2im_8a1be4f38d62554df5813223c19078e9dec475d3123d422dd2cbee28(device float * static_buffer[[buffer(0)]],
+kernel void fusedelementwise_a20a904b1bca924ab7d7cab8105ebc7508be8a80c2d9180cd1376f85(device float * static_buffer[[buffer(0)]],
+                          device float * dynamic_buffer[[buffer(1)]],
+                          const device int * meta_buffer [[buffer(2)]],
+                          uint gid[[thread_position_in_grid]],
+                          uint num_threads[[threads_per_grid]])
+{
+    const device float * v1 = (static_buffer + meta_buffer[0]);
+    const device float * v2 = (static_buffer + meta_buffer[1]);
+    const device float * v3 = (static_buffer + meta_buffer[2]);
+    device float * v4 = (static_buffer + meta_buffer[3]);
+    const int v5 = meta_buffer[4];
+    const int v6 = meta_buffer[5];
+    const int v7 = meta_buffer[6];
+    const int D0 = meta_buffer[7];
+    const int D1 = meta_buffer[8];
+    int d0;
+    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {
+        const float v8 = v1[d0];
+        int d1;
+        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {
+            const float v9 = v2[d0 + d1*v5];
+            const float v10 = v3[d0*v6 + d1];
+            float v11;
+            {
+                v11 = v9 + v10;
+            }
+            float v12;
+            {
+                v12 = v8 + v11;
+            }
+            v4[d0*v7 + d1] = v12;
+        }
+    }
+}
+
+
+kernel void col2im_3257ca943e22088b2d823352586af59c3843348db068253d4bb00a88(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint index[[thread_position_in_grid]],
@@ -982,7 +1018,7 @@ kernel void col2im_8a1be4f38d62554df5813223c19078e9dec475d3123d422dd2cbee28(devi
         const int n  = gid / C1 / W1 / H1;
 
         float sum = 0;
-        
+
         for (int kh = 0; kh < KH; kh++) {
             const int h2 = (h1 + PH - kh) / SH;
             if ((h1 + PH - kh) % SH != 0 || h2 < 0 || h2 >= H2) continue;
@@ -990,17 +1026,17 @@ kernel void col2im_8a1be4f38d62554df5813223c19078e9dec475d3123d422dd2cbee28(devi
             for (int kw = 0; kw < KW; kw++) {
                 const int w2 = (w1 + PW - kw) / SW;
                 if ((w1 + PW - kw) % SW != 0 || w2 < 0 || w2 >= W2) continue;
-                
+
                 sum += col[((((n * H2 + h2) * W2 + w2) * KH + kh) * KW + kw) * C1 + c1];
             }
         }
-        
-        im[gid] = sum; 
+
+        im[gid] = sum;
     }
 }
 
 
-kernel void fusedelementwise_43b459b6893088b1c84e13bcc262d1474635cb2f332eb47df57e145b(device float * static_buffer[[buffer(0)]],
+kernel void fusedelementwise_af13236dc2a3b1e840f85fbb0a525534ef08be1bc7155583411cf2a0(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint gid[[thread_position_in_grid]],
@@ -1025,7 +1061,7 @@ kernel void fusedelementwise_43b459b6893088b1c84e13bcc262d1474635cb2f332eb47df57
             const float v11 = v4[d0 + d1*v6];
             float v12;
             {
-                v12 = v11 + v10;
+                v12 = v11 + v9;
             }
             float v13;
             {
@@ -1033,11 +1069,11 @@ kernel void fusedelementwise_43b459b6893088b1c84e13bcc262d1474635cb2f332eb47df57
             }
             float v14;
             {
-                v14 = v13 * v9;
+                v14 = v13 * v8;
             }
             float v15;
             {
-                v15 = v14 + v8;
+                v15 = v14 + v10;
             }
             v5[d0*v7 + d1] = v15;
         }
@@ -1090,7 +1126,7 @@ kernel void fusedelementwise_4c564a4f36f688401869a753cb6f3b81c1822d78b9977a72583
 }
 
 
-kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(device float * static_buffer[[buffer(0)]],
+kernel void tensordot_488954f1cb868fb263cb3fa8afa4357054169df3d2df0ca624f30099(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint index[[thread_index_in_threadgroup]],
@@ -1107,12 +1143,12 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
 #define B_STRIDE_N 1
 
 #if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64 && OPTIMIZE
-    const device float4 *load_target4 = (index & 32) 
-        ? (const device float4 *)((static_buffer + meta_buffer[1])) 
+    const device float4 *load_target4 = (index & 32)
+        ? (const device float4 *)((static_buffer + meta_buffer[1]))
         : (const device float4 *)((static_buffer + meta_buffer[0]));
 #else
-    const device float *load_target = (index & 32) 
-        ? ((static_buffer + meta_buffer[1])) 
+    const device float *load_target = (index & 32)
+        ? ((static_buffer + meta_buffer[1]))
         : ((static_buffer + meta_buffer[0]));
 #endif
 
@@ -1164,25 +1200,25 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
                 load_target[track0 + stride_mn * 1],
                 load_target[track0 + stride_mn * 2],
                 load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 load_target[track2 + stride_mn * 0],
                 load_target[track2 + stride_mn * 1],
                 load_target[track2 + stride_mn * 2],
                 load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 load_target[track4 + stride_mn * 0],
                 load_target[track4 + stride_mn * 1],
                 load_target[track4 + stride_mn * 2],
                 load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 load_target[track6 + stride_mn * 0],
                 load_target[track6 + stride_mn * 1],
                 load_target[track6 + stride_mn * 2],
                 load_target[track6 + stride_mn * 3]
-            ); 
+            );
         #endif
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -1190,25 +1226,25 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
     #endif
 
             k += 8;
@@ -1219,7 +1255,7 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -1227,7 +1263,7 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -1235,7 +1271,7 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -1243,7 +1279,7 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -1251,7 +1287,7 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -1259,7 +1295,7 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -1267,7 +1303,7 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -1275,7 +1311,7 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #endif
 #endif
@@ -1371,7 +1407,7 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
     }
 
     {
-    
+
 #if OPTIMIZE && N_DIVIDABLE_BY_64
         device float4 *C4 = (device float4 *)((static_buffer + meta_buffer[2]));
         const int N4 = N >> 2;
@@ -1389,7 +1425,7 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
 
             C4[m * N4 + n + 0] = result0;
             C4[m * N4 + n + 1] = result1;
-            
+
             m++;
         }
 #else
@@ -1412,7 +1448,7 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
                     n++;
                 }
             }
-            
+
             m++;
         }
 #endif
@@ -1429,7 +1465,7 @@ kernel void tensordot_387dff4a00045ab6ceb58c1c2a5ea39c9600a6fadb73d5ea08a701cc(d
 }
 
 
-kernel void fusedelementwise_73a4e22a76dd8f6822cbd7838747feb9d06349de918775cf6a5f84f2(device float * static_buffer[[buffer(0)]],
+kernel void fusedelementwise_b25ccdde24c28ffe070ed082512bd1c7c1afa0657bd494eb618c6b98(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint gid[[thread_position_in_grid]],
@@ -1448,7 +1484,7 @@ kernel void fusedelementwise_73a4e22a76dd8f6822cbd7838747feb9d06349de918775cf6a5
     const int D1 = meta_buffer[10];
     int d0;
     for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {
-        const float v10 = v3[d0];
+        const float v10 = v2[d0];
         int d1;
         for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {
             const float v11 = v4[d0 + d1*v8];
@@ -1460,12 +1496,12 @@ kernel void fusedelementwise_73a4e22a76dd8f6822cbd7838747feb9d06349de918775cf6a5
             {
                 v13 = (v12 >= 10.0 ? 1.0 : tanh(v12));
             }
-            const float v14 = v1[d0*v6 + d1];
+            const float v14 = v3[d0*v7 + d1];
             float v15;
             {
                 v15 = v13 * v14;
             }
-            const float v16 = v2[d0*v7 + d1];
+            const float v16 = v1[d0*v6 + d1];
             float v17;
             {
                 v17 = v15 + v16;

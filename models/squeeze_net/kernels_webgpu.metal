@@ -4,155 +4,69 @@ using namespace metal;
 
 #define OPTIMIZE 1
 
-kernel void im2col_f234fa81b99b83ffc5bb5edb9b06770444bf5cde426d8b951fd2cccd(device float * static_buffer[[buffer(0)]],
+kernel void im2col_9b539f2f74232353e897aa9134c69cfa1ee49d2b6fa3daf025ab98c3(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
-                          uint index_thread[[thread_position_in_threadgroup]],
-                          uint index_group[[threadgroup_position_in_grid]])
+                          uint index[[thread_position_in_grid]],
+                          uint num_threads[[threads_per_grid]])
 {
-#define SH_EQUAL_1 0
-#define SW_EQUAL_1 0
-#define DH_EQUAL_1 1
-#define DW_EQUAL_1 1
-#define C1_DIVIDABLE_BY_4 0
-
-
-#if OPTIMIZE && C1_DIVIDABLE_BY_4
-    const device float4 *im4 = (const device float4 *)((static_buffer + meta_buffer[0]));
-    device float4 *col4 = (device float4 *)((static_buffer + meta_buffer[1]));
-    const int C1_4 = (meta_buffer[3]) >> 2;
-#else
     const device float *im = (static_buffer + meta_buffer[0]);
     device float *col = (static_buffer + meta_buffer[1]);
-    const int C1 = meta_buffer[3];
-#endif
 
+    const int N = meta_buffer[2];
+    const int C1 = meta_buffer[3];
     const int H1 = meta_buffer[4];
     const int W1 = meta_buffer[5];
     const int H2 = meta_buffer[6];
     const int W2 = meta_buffer[7];
     const int KH = meta_buffer[8];
     const int KW = meta_buffer[9];
-#if !DH_EQUAL_1
     const int DH = meta_buffer[10];
-#endif
-#if !DW_EQUAL_1
     const int DW = meta_buffer[11];
-#endif
+    const int SH = meta_buffer[12];
+    const int SW = meta_buffer[13];
     const int PH = meta_buffer[14];
     const int PW = meta_buffer[15];
 
-#if !OPTIMIZE || !SH_EQUAL_1
-    const int SH = meta_buffer[12];
-#endif
+    for (int gid = index; gid < N*H2*W2*KH*KW*C1; gid += num_threads) {
+        const int w2 = gid % W2;
+        const int h2 = gid / W2 % H2;
+        const int  n = gid / W2 / H2 % N;
+        const int c1 = gid / W2 / H2 / N % C1;
+        const int kw = gid / W2 / H2 / N / C1 % KW;
+        const int kh = gid / W2 / H2 / N / C1 / KW;
 
-#if !OPTIMIZE || !SW_EQUAL_1
-    const int SW = meta_buffer[13];
-#endif
+        const int h1 = h2 * SH - PH + kh * DH;
+        const int w1 = w2 * SW - PW + kw * DW;
 
-    const int H1P = H1 + 2 * PH;
-    const int W1P = W1 + 2 * PW;
-
-    const int w1 = (index_group % W1P) - PW;
-    const int h1 = (index_group / W1P % H1P) - PH;
-    const int  n = index_group / W1P / H1P;
-
-#if OPTIMIZE && C1_DIVIDABLE_BY_4
-    for (int c1_4 = index_thread; c1_4 < C1_4; c1_4 += 64) {
-        const float4 v4 = (h1 < 0 || h1 >= H1 || w1 < 0 || w1 >= W1) ? 0 : im4[((n * H1 + h1) * W1 + w1) * C1_4 + c1_4];
-#else
-    for (int c1 = index_thread; c1 < C1; c1 += 64) {
-        const float v = (h1 < 0 || h1 >= H1 || w1 < 0 || w1 >= W1) ? 0 : im[((n * H1 + h1) * W1 + w1) * C1 + c1];
-#endif
-
-#if OPTIMIZE && SH_EQUAL_1
-        for (int kh = 0; kh < KH; kh++) {
-    #if DH_EQUAL_1
-            const int h2 = h1 + PH - kh;
-    #else
-            const int h2 = h1 + PH - kh * DH;
-    #endif
-    
-#else
-        for (int kh = (h1 + PH) % SH; kh < KH; kh += SH) {
-    #if DH_EQUAL_1
-            const int h2 = (h1 + PH - kh) / SH;
-    #else
-            const int h2 = (h1 + PH - kh * DH) / SH;
-    #endif
-#endif
-            if (h2 < 0 || h2 >= H2) continue;
-
-#if OPTIMIZE && SH_EQUAL_1
-            for (int kw = 0; kw < KW; kw++) {
-    #if DW_EQUAL_1
-                const int w2 = w1 + PW - kw;
-    #else
-                const int w2 = w1 + PW - kw * DW;
-    #endif
-#else
-            for (int kw = (w1 + PW) % SW; kw < KW; kw += SW) {
-    #if DW_EQUAL_1
-                const int w2 = (w1 + PW - kw) / SW;
-    #else
-                const int w2 = (w1 + PW - kw * DW) / SW;
-    #endif
-#endif
-                if (w2 < 0 || w2 >= W2) continue;
-
-#if OPTIMIZE && C1_DIVIDABLE_BY_4
-                col4[((((n * H2 + h2) * W2 + w2) * KH + kh) * KW + kw) * C1_4 + c1_4] = v4;
-#else
-                col[((((n * H2 + h2) * W2 + w2) * KH + kh) * KW + kw) * C1 + c1] = v;
-#endif
-            }
-        }
+        col[gid] = (h1 < 0 || h1 >= H1 || w1 < 0 || w1 >= W1) ? 0 : im[((n*H1+h1)*W1+w1)*C1+c1];
     }
-
-
-#undef SH_EQUAL_1
-#undef SW_EQUAL_1
-#undef DH_EQUAL_1
-#undef DW_EQUAL_1
-#undef C1_DIVIDABLE_BY_4
 }
 
 
-kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(device float * static_buffer[[buffer(0)]],
+kernel void tensordot_27f826931ad3bbbc871d7c8749f50988981500cf1d2bdbdb0e7e1157(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint index[[thread_index_in_threadgroup]],
                           uint2 group_position[[threadgroup_position_in_grid]])
 {
-#define TRANSPOSE_A 1
-#define TRANSPOSE_B 1
 #define M_DIVIDABLE_BY_64 1
 #define N_DIVIDABLE_BY_64 1
 #define K_DIVIDABLE_BY_8 0
 
-#if TRANSPOSE_A
-    #define A_STRIDE_K 1
-    #define A_STRIDE_M K
-#else
-    #define A_STRIDE_K M
-    #define A_STRIDE_M 1
-#endif
+#define A_STRIDE_K M
+#define A_STRIDE_M 1
 
-#if TRANSPOSE_B
-    #define B_STRIDE_K N
-    #define B_STRIDE_N 1
-#else
-    #define B_STRIDE_K 1
-    #define B_STRIDE_N K
-#endif
+#define B_STRIDE_K N
+#define B_STRIDE_N 1
 
-#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64  && N_DIVIDABLE_BY_64 && !TRANSPOSE_A && TRANSPOSE_B && OPTIMIZE
-    const device float4 *load_target4 = (index & 32) 
-        ? (const device float4 *)((static_buffer + meta_buffer[1])) 
+#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64 && OPTIMIZE
+    const device float4 *load_target4 = (index & 32)
+        ? (const device float4 *)((static_buffer + meta_buffer[1]))
         : (const device float4 *)((static_buffer + meta_buffer[0]));
 #else
-    const device float *load_target = (index & 32) 
-        ? ((static_buffer + meta_buffer[1])) 
+    const device float *load_target = (index & 32)
+        ? ((static_buffer + meta_buffer[1]))
         : ((static_buffer + meta_buffer[0]));
 #endif
 
@@ -193,7 +107,7 @@ kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(devic
         {
 #if OPTIMIZE && K_DIVIDABLE_BY_8
     #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64
-        #if OPTIMIZE && !TRANSPOSE_A && TRANSPOSE_B
+        #if OPTIMIZE
             shared4[shared_offset4 + 32 * 0] = load_target4[track0 >> 2];
             shared4[shared_offset4 + 32 * 2] = load_target4[track2 >> 2];
             shared4[shared_offset4 + 32 * 4] = load_target4[track4 >> 2];
@@ -204,25 +118,25 @@ kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(devic
                 load_target[track0 + stride_mn * 1],
                 load_target[track0 + stride_mn * 2],
                 load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 load_target[track2 + stride_mn * 0],
                 load_target[track2 + stride_mn * 1],
                 load_target[track2 + stride_mn * 2],
                 load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 load_target[track4 + stride_mn * 0],
                 load_target[track4 + stride_mn * 1],
                 load_target[track4 + stride_mn * 2],
                 load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 load_target[track6 + stride_mn * 0],
                 load_target[track6 + stride_mn * 1],
                 load_target[track6 + stride_mn * 2],
                 load_target[track6 + stride_mn * 3]
-            ); 
+            );
         #endif
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -230,25 +144,25 @@ kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(devic
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
     #endif
 
             k += 8;
@@ -259,7 +173,7 @@ kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -267,7 +181,7 @@ kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -275,7 +189,7 @@ kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -283,7 +197,7 @@ kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -291,7 +205,7 @@ kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -299,7 +213,7 @@ kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -307,7 +221,7 @@ kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -315,7 +229,7 @@ kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #endif
 #endif
@@ -411,7 +325,7 @@ kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(devic
     }
 
     {
-    
+
 #if OPTIMIZE && N_DIVIDABLE_BY_64
         device float4 *C4 = (device float4 *)((static_buffer + meta_buffer[2]));
         const int N4 = N >> 2;
@@ -429,7 +343,7 @@ kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(devic
 
             C4[m * N4 + n + 0] = result0;
             C4[m * N4 + n + 1] = result1;
-            
+
             m++;
         }
 #else
@@ -452,23 +366,20 @@ kernel void sgemm_a7c2ce03cada0462628130dd55b53fe49eea5d6d918814d6a9d49d9c(devic
                     n++;
                 }
             }
-            
+
             m++;
         }
 #endif
 
     }
 
-
 #undef M_DIVIDABLE_BY_64
 #undef N_DIVIDABLE_BY_64
 #undef K_DIVIDABLE_BY_8
-#undef TRANSPOSE_A
-#undef TRANSPOSE_B
 #undef A_STRIDE_K
 #undef B_STRIDE_K
 #undef A_STRIDE_M
-#undef A_STRIDE_M
+#undef B_STRIDE_N
 }
 
 
@@ -505,7 +416,7 @@ kernel void fusedelementwise_3cfde4edccf2d157c64e8a5e39f8ee66e10ec80af20ca9d5ae0
 }
 
 
-kernel void maxpooling2d_fdd28c996dc6552178be6541f1b2adfa1ab7c31ec0bb9c2b70bff1e7(device float * static_buffer[[buffer(0)]],
+kernel void maxpooling2d_8ade83eab004c71dd4c1bf246c54c26b7693025724f6dfd1f0041e91(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint index[[thread_position_in_grid]],
@@ -519,14 +430,14 @@ kernel void maxpooling2d_fdd28c996dc6552178be6541f1b2adfa1ab7c31ec0bb9c2b70bff1e
     const int C = meta_buffer[5];
     const int H2 = meta_buffer[6];
     const int W2 = meta_buffer[7];
-    
+
     const int KH = meta_buffer[8];
     const int KW = meta_buffer[9];
     const int SH = meta_buffer[10];
     const int SW = meta_buffer[11];
     const int PH = meta_buffer[12];
     const int PW = meta_buffer[13];
-    
+
     for (int gid = index; gid < N * H2 * W2 * C; gid += num_threads) {
         const int c = gid % C;
         const int w2 = gid / C % W2;
@@ -537,7 +448,7 @@ kernel void maxpooling2d_fdd28c996dc6552178be6541f1b2adfa1ab7c31ec0bb9c2b70bff1e
         for (int kh = 0; kh < KH; kh++) {
             const int h1 = h2 * SH - PH + kh;
             if (h1 < 0 || h1 >= H1) continue;
-            
+
             for (int kw = 0; kw < KW; kw++) {
                 const int w1 = w2 * SW - PW + kw;
                 if (w1 < 0 || w1 >= W1) continue;
@@ -551,41 +462,56 @@ kernel void maxpooling2d_fdd28c996dc6552178be6541f1b2adfa1ab7c31ec0bb9c2b70bff1e
 }
 
 
-kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(device float * static_buffer[[buffer(0)]],
+kernel void transpose_1a0fbadea0475062956fc679399ce2f40129cb877aec049982efb309(device float * static_buffer[[buffer(0)]],
+                          device float * dynamic_buffer[[buffer(1)]],
+                          const device int * meta_buffer [[buffer(2)]],
+                          uint gid[[thread_position_in_grid]],
+                          uint num_threads[[threads_per_grid]])
+{
+    const device float * v1 = (static_buffer + meta_buffer[0]);
+    device float * v2 = (static_buffer + meta_buffer[1]);
+    const int v3 = meta_buffer[2];
+    const int v4 = meta_buffer[3];
+    const int D0 = meta_buffer[4];
+    const int D1 = meta_buffer[5];
+    int d0;
+    for (d0 = ((num_threads > 8) ? (gid % (num_threads / 8)) : 0); d0 < D0; d0 += ((num_threads > 8) ? (num_threads / 8) : 1)) {
+        int d1;
+        for (d1 = ((num_threads > 8) ? (gid / (num_threads / 8)) : 0); d1 < D1; d1 += ((num_threads > 8) ? 8 : 1)) {
+            const float v5 = v1[d0*v3 + d1];
+            float v6;
+            {
+                v6 = v5;
+            }
+            v2[d0 + d1*v4] = v6;
+        }
+    }
+}
+
+
+kernel void tensordot_488954f1cb868fb263cb3fa8afa4357054169df3d2df0ca624f30099(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint index[[thread_index_in_threadgroup]],
                           uint2 group_position[[threadgroup_position_in_grid]])
 {
-#define TRANSPOSE_A 1
-#define TRANSPOSE_B 1
 #define M_DIVIDABLE_BY_64 1
 #define N_DIVIDABLE_BY_64 0
 #define K_DIVIDABLE_BY_8 1
 
-#if TRANSPOSE_A
-    #define A_STRIDE_K 1
-    #define A_STRIDE_M K
-#else
-    #define A_STRIDE_K M
-    #define A_STRIDE_M 1
-#endif
+#define A_STRIDE_K M
+#define A_STRIDE_M 1
 
-#if TRANSPOSE_B
-    #define B_STRIDE_K N
-    #define B_STRIDE_N 1
-#else
-    #define B_STRIDE_K 1
-    #define B_STRIDE_N K
-#endif
+#define B_STRIDE_K N
+#define B_STRIDE_N 1
 
-#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64  && N_DIVIDABLE_BY_64 && !TRANSPOSE_A && TRANSPOSE_B && OPTIMIZE
-    const device float4 *load_target4 = (index & 32) 
-        ? (const device float4 *)((static_buffer + meta_buffer[1])) 
+#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64 && OPTIMIZE
+    const device float4 *load_target4 = (index & 32)
+        ? (const device float4 *)((static_buffer + meta_buffer[1]))
         : (const device float4 *)((static_buffer + meta_buffer[0]));
 #else
-    const device float *load_target = (index & 32) 
-        ? ((static_buffer + meta_buffer[1])) 
+    const device float *load_target = (index & 32)
+        ? ((static_buffer + meta_buffer[1]))
         : ((static_buffer + meta_buffer[0]));
 #endif
 
@@ -626,7 +552,7 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
         {
 #if OPTIMIZE && K_DIVIDABLE_BY_8
     #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64
-        #if OPTIMIZE && !TRANSPOSE_A && TRANSPOSE_B
+        #if OPTIMIZE
             shared4[shared_offset4 + 32 * 0] = load_target4[track0 >> 2];
             shared4[shared_offset4 + 32 * 2] = load_target4[track2 >> 2];
             shared4[shared_offset4 + 32 * 4] = load_target4[track4 >> 2];
@@ -637,25 +563,25 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
                 load_target[track0 + stride_mn * 1],
                 load_target[track0 + stride_mn * 2],
                 load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 load_target[track2 + stride_mn * 0],
                 load_target[track2 + stride_mn * 1],
                 load_target[track2 + stride_mn * 2],
                 load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 load_target[track4 + stride_mn * 0],
                 load_target[track4 + stride_mn * 1],
                 load_target[track4 + stride_mn * 2],
                 load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 load_target[track6 + stride_mn * 0],
                 load_target[track6 + stride_mn * 1],
                 load_target[track6 + stride_mn * 2],
                 load_target[track6 + stride_mn * 3]
-            ); 
+            );
         #endif
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -663,25 +589,25 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
     #endif
 
             k += 8;
@@ -692,7 +618,7 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -700,7 +626,7 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -708,7 +634,7 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -716,7 +642,7 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -724,7 +650,7 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -732,7 +658,7 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -740,7 +666,7 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -748,7 +674,7 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #endif
 #endif
@@ -844,7 +770,7 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
     }
 
     {
-    
+
 #if OPTIMIZE && N_DIVIDABLE_BY_64
         device float4 *C4 = (device float4 *)((static_buffer + meta_buffer[2]));
         const int N4 = N >> 2;
@@ -862,7 +788,7 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
 
             C4[m * N4 + n + 0] = result0;
             C4[m * N4 + n + 1] = result1;
-            
+
             m++;
         }
 #else
@@ -885,61 +811,46 @@ kernel void sgemm_2f5fb17c61936ed97c3b40058a42f14de9b21cb6b4208d457114dbc7(devic
                     n++;
                 }
             }
-            
+
             m++;
         }
 #endif
 
     }
 
-
 #undef M_DIVIDABLE_BY_64
 #undef N_DIVIDABLE_BY_64
 #undef K_DIVIDABLE_BY_8
-#undef TRANSPOSE_A
-#undef TRANSPOSE_B
 #undef A_STRIDE_K
 #undef B_STRIDE_K
 #undef A_STRIDE_M
-#undef A_STRIDE_M
+#undef B_STRIDE_N
 }
 
 
-kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(device float * static_buffer[[buffer(0)]],
+kernel void tensordot_291ea7d32ad11e41e6bd4219499a657cb96247731a43990b62e2f287(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint index[[thread_index_in_threadgroup]],
                           uint2 group_position[[threadgroup_position_in_grid]])
 {
-#define TRANSPOSE_A 1
-#define TRANSPOSE_B 1
 #define M_DIVIDABLE_BY_64 1
 #define N_DIVIDABLE_BY_64 1
 #define K_DIVIDABLE_BY_8 1
 
-#if TRANSPOSE_A
-    #define A_STRIDE_K 1
-    #define A_STRIDE_M K
-#else
-    #define A_STRIDE_K M
-    #define A_STRIDE_M 1
-#endif
+#define A_STRIDE_K M
+#define A_STRIDE_M 1
 
-#if TRANSPOSE_B
-    #define B_STRIDE_K N
-    #define B_STRIDE_N 1
-#else
-    #define B_STRIDE_K 1
-    #define B_STRIDE_N K
-#endif
+#define B_STRIDE_K N
+#define B_STRIDE_N 1
 
-#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64  && N_DIVIDABLE_BY_64 && !TRANSPOSE_A && TRANSPOSE_B && OPTIMIZE
-    const device float4 *load_target4 = (index & 32) 
-        ? (const device float4 *)((static_buffer + meta_buffer[1])) 
+#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64 && OPTIMIZE
+    const device float4 *load_target4 = (index & 32)
+        ? (const device float4 *)((static_buffer + meta_buffer[1]))
         : (const device float4 *)((static_buffer + meta_buffer[0]));
 #else
-    const device float *load_target = (index & 32) 
-        ? ((static_buffer + meta_buffer[1])) 
+    const device float *load_target = (index & 32)
+        ? ((static_buffer + meta_buffer[1]))
         : ((static_buffer + meta_buffer[0]));
 #endif
 
@@ -980,7 +891,7 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
         {
 #if OPTIMIZE && K_DIVIDABLE_BY_8
     #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64
-        #if OPTIMIZE && !TRANSPOSE_A && TRANSPOSE_B
+        #if OPTIMIZE
             shared4[shared_offset4 + 32 * 0] = load_target4[track0 >> 2];
             shared4[shared_offset4 + 32 * 2] = load_target4[track2 >> 2];
             shared4[shared_offset4 + 32 * 4] = load_target4[track4 >> 2];
@@ -991,25 +902,25 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
                 load_target[track0 + stride_mn * 1],
                 load_target[track0 + stride_mn * 2],
                 load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 load_target[track2 + stride_mn * 0],
                 load_target[track2 + stride_mn * 1],
                 load_target[track2 + stride_mn * 2],
                 load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 load_target[track4 + stride_mn * 0],
                 load_target[track4 + stride_mn * 1],
                 load_target[track4 + stride_mn * 2],
                 load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 load_target[track6 + stride_mn * 0],
                 load_target[track6 + stride_mn * 1],
                 load_target[track6 + stride_mn * 2],
                 load_target[track6 + stride_mn * 3]
-            ); 
+            );
         #endif
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -1017,25 +928,25 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
     #endif
 
             k += 8;
@@ -1046,7 +957,7 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -1054,7 +965,7 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -1062,7 +973,7 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -1070,7 +981,7 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -1078,7 +989,7 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -1086,7 +997,7 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -1094,7 +1005,7 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -1102,7 +1013,7 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #endif
 #endif
@@ -1198,7 +1109,7 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
     }
 
     {
-    
+
 #if OPTIMIZE && N_DIVIDABLE_BY_64
         device float4 *C4 = (device float4 *)((static_buffer + meta_buffer[2]));
         const int N4 = N >> 2;
@@ -1216,7 +1127,7 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
 
             C4[m * N4 + n + 0] = result0;
             C4[m * N4 + n + 1] = result1;
-            
+
             m++;
         }
 #else
@@ -1239,141 +1150,24 @@ kernel void sgemm_94f0c54b77dcb1fbad06f386c4665ef898e786f3080ae97e8195afb1(devic
                     n++;
                 }
             }
-            
+
             m++;
         }
 #endif
 
     }
 
-
 #undef M_DIVIDABLE_BY_64
 #undef N_DIVIDABLE_BY_64
 #undef K_DIVIDABLE_BY_8
-#undef TRANSPOSE_A
-#undef TRANSPOSE_B
 #undef A_STRIDE_K
 #undef B_STRIDE_K
 #undef A_STRIDE_M
-#undef A_STRIDE_M
+#undef B_STRIDE_N
 }
 
 
-kernel void im2col_dd5a967a90f95059d05657fb827f839569ee043c5e56cbfeb987f6f8(device float * static_buffer[[buffer(0)]],
-                          device float * dynamic_buffer[[buffer(1)]],
-                          const device int * meta_buffer [[buffer(2)]],
-                          uint index_thread[[thread_position_in_threadgroup]],
-                          uint index_group[[threadgroup_position_in_grid]])
-{
-#define SH_EQUAL_1 1
-#define SW_EQUAL_1 1
-#define DH_EQUAL_1 1
-#define DW_EQUAL_1 1
-#define C1_DIVIDABLE_BY_4 1
-
-
-#if OPTIMIZE && C1_DIVIDABLE_BY_4
-    const device float4 *im4 = (const device float4 *)((static_buffer + meta_buffer[0]));
-    device float4 *col4 = (device float4 *)((static_buffer + meta_buffer[1]));
-    const int C1_4 = (meta_buffer[3]) >> 2;
-#else
-    const device float *im = (static_buffer + meta_buffer[0]);
-    device float *col = (static_buffer + meta_buffer[1]);
-    const int C1 = meta_buffer[3];
-#endif
-
-    const int H1 = meta_buffer[4];
-    const int W1 = meta_buffer[5];
-    const int H2 = meta_buffer[6];
-    const int W2 = meta_buffer[7];
-    const int KH = meta_buffer[8];
-    const int KW = meta_buffer[9];
-#if !DH_EQUAL_1
-    const int DH = meta_buffer[10];
-#endif
-#if !DW_EQUAL_1
-    const int DW = meta_buffer[11];
-#endif
-    const int PH = meta_buffer[14];
-    const int PW = meta_buffer[15];
-
-#if !OPTIMIZE || !SH_EQUAL_1
-    const int SH = meta_buffer[12];
-#endif
-
-#if !OPTIMIZE || !SW_EQUAL_1
-    const int SW = meta_buffer[13];
-#endif
-
-    const int H1P = H1 + 2 * PH;
-    const int W1P = W1 + 2 * PW;
-
-    const int w1 = (index_group % W1P) - PW;
-    const int h1 = (index_group / W1P % H1P) - PH;
-    const int  n = index_group / W1P / H1P;
-
-#if OPTIMIZE && C1_DIVIDABLE_BY_4
-    for (int c1_4 = index_thread; c1_4 < C1_4; c1_4 += 64) {
-        const float4 v4 = (h1 < 0 || h1 >= H1 || w1 < 0 || w1 >= W1) ? 0 : im4[((n * H1 + h1) * W1 + w1) * C1_4 + c1_4];
-#else
-    for (int c1 = index_thread; c1 < C1; c1 += 64) {
-        const float v = (h1 < 0 || h1 >= H1 || w1 < 0 || w1 >= W1) ? 0 : im[((n * H1 + h1) * W1 + w1) * C1 + c1];
-#endif
-
-#if OPTIMIZE && SH_EQUAL_1
-        for (int kh = 0; kh < KH; kh++) {
-    #if DH_EQUAL_1
-            const int h2 = h1 + PH - kh;
-    #else
-            const int h2 = h1 + PH - kh * DH;
-    #endif
-    
-#else
-        for (int kh = (h1 + PH) % SH; kh < KH; kh += SH) {
-    #if DH_EQUAL_1
-            const int h2 = (h1 + PH - kh) / SH;
-    #else
-            const int h2 = (h1 + PH - kh * DH) / SH;
-    #endif
-#endif
-            if (h2 < 0 || h2 >= H2) continue;
-
-#if OPTIMIZE && SH_EQUAL_1
-            for (int kw = 0; kw < KW; kw++) {
-    #if DW_EQUAL_1
-                const int w2 = w1 + PW - kw;
-    #else
-                const int w2 = w1 + PW - kw * DW;
-    #endif
-#else
-            for (int kw = (w1 + PW) % SW; kw < KW; kw += SW) {
-    #if DW_EQUAL_1
-                const int w2 = (w1 + PW - kw) / SW;
-    #else
-                const int w2 = (w1 + PW - kw * DW) / SW;
-    #endif
-#endif
-                if (w2 < 0 || w2 >= W2) continue;
-
-#if OPTIMIZE && C1_DIVIDABLE_BY_4
-                col4[((((n * H2 + h2) * W2 + w2) * KH + kh) * KW + kw) * C1_4 + c1_4] = v4;
-#else
-                col[((((n * H2 + h2) * W2 + w2) * KH + kh) * KW + kw) * C1 + c1] = v;
-#endif
-            }
-        }
-    }
-
-
-#undef SH_EQUAL_1
-#undef SW_EQUAL_1
-#undef DH_EQUAL_1
-#undef DW_EQUAL_1
-#undef C1_DIVIDABLE_BY_4
-}
-
-
-kernel void concat_bbb050fc2bb6edb8d1e5e2c9ef9415d626f60b261c1fac1fec217460(device float * static_buffer[[buffer(0)]],
+kernel void concat_8f61baa857b76c07bfa62f20923cc7b22ee2a3ff039d0d4291ac63ff(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint index[[thread_position_in_grid]],
@@ -1385,73 +1179,61 @@ kernel void concat_bbb050fc2bb6edb8d1e5e2c9ef9415d626f60b261c1fac1fec217460(devi
     const device int *y_offsets = (&(meta_buffer[23]));
     const device int *x_shapes = (&(meta_buffer[15]));
     const device int *x_strides_in_y = (&(meta_buffer[7]));
-    
+
     int x_index = index;
-    
+
     for (int n = 0; n < N; n++) {
-        const device float *x = (meta_buffer[3+2+ (n)] ? static_buffer : dynamic_buffer) + meta_buffer[3 + (n)];
+        const device float *x = (meta_buffer[3+2+(n)]?static_buffer:dynamic_buffer) + meta_buffer[3 + (n)];
         const int y_offset = y_offsets[n];
         const device int *x_shape = x_shapes + n*D;
         const device int *x_stride_in_y = x_strides_in_y + n*D;
-        
+
         int x_size = 1;
         for (int d = 0; d < D; d++) {
             x_size *= x_shape[d];
         }
-        
-        while (x_index < x_size) { 
+
+        while (x_index < x_size) {
             int y_index = y_offset;
             int s = x_index;
             for (int d = D-1; d >= 0; d--) {
                 y_index += x_stride_in_y[d] * (s % x_shape[d]);
                 s /= x_shape[d];
             }
-        
+
             y[y_index] = x[x_index];
-            
+
             x_index += num_threads;
         }
-        
+
         x_index -= x_size;
     }
 }
 
 
-kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(device float * static_buffer[[buffer(0)]],
+kernel void tensordot_92d010c077e5e47e7d25245f52cbec2d36848fa15bbaf804a3bb662a(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint index[[thread_index_in_threadgroup]],
                           uint2 group_position[[threadgroup_position_in_grid]])
 {
-#define TRANSPOSE_A 1
-#define TRANSPOSE_B 1
 #define M_DIVIDABLE_BY_64 0
 #define N_DIVIDABLE_BY_64 0
 #define K_DIVIDABLE_BY_8 1
 
-#if TRANSPOSE_A
-    #define A_STRIDE_K 1
-    #define A_STRIDE_M K
-#else
-    #define A_STRIDE_K M
-    #define A_STRIDE_M 1
-#endif
+#define A_STRIDE_K M
+#define A_STRIDE_M 1
 
-#if TRANSPOSE_B
-    #define B_STRIDE_K N
-    #define B_STRIDE_N 1
-#else
-    #define B_STRIDE_K 1
-    #define B_STRIDE_N K
-#endif
+#define B_STRIDE_K N
+#define B_STRIDE_N 1
 
-#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64  && N_DIVIDABLE_BY_64 && !TRANSPOSE_A && TRANSPOSE_B && OPTIMIZE
-    const device float4 *load_target4 = (index & 32) 
-        ? (const device float4 *)((static_buffer + meta_buffer[1])) 
+#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64 && OPTIMIZE
+    const device float4 *load_target4 = (index & 32)
+        ? (const device float4 *)((static_buffer + meta_buffer[1]))
         : (const device float4 *)((static_buffer + meta_buffer[0]));
 #else
-    const device float *load_target = (index & 32) 
-        ? ((static_buffer + meta_buffer[1])) 
+    const device float *load_target = (index & 32)
+        ? ((static_buffer + meta_buffer[1]))
         : ((static_buffer + meta_buffer[0]));
 #endif
 
@@ -1492,7 +1274,7 @@ kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(devic
         {
 #if OPTIMIZE && K_DIVIDABLE_BY_8
     #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64
-        #if OPTIMIZE && !TRANSPOSE_A && TRANSPOSE_B
+        #if OPTIMIZE
             shared4[shared_offset4 + 32 * 0] = load_target4[track0 >> 2];
             shared4[shared_offset4 + 32 * 2] = load_target4[track2 >> 2];
             shared4[shared_offset4 + 32 * 4] = load_target4[track4 >> 2];
@@ -1503,25 +1285,25 @@ kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(devic
                 load_target[track0 + stride_mn * 1],
                 load_target[track0 + stride_mn * 2],
                 load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 load_target[track2 + stride_mn * 0],
                 load_target[track2 + stride_mn * 1],
                 load_target[track2 + stride_mn * 2],
                 load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 load_target[track4 + stride_mn * 0],
                 load_target[track4 + stride_mn * 1],
                 load_target[track4 + stride_mn * 2],
                 load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 load_target[track6 + stride_mn * 0],
                 load_target[track6 + stride_mn * 1],
                 load_target[track6 + stride_mn * 2],
                 load_target[track6 + stride_mn * 3]
-            ); 
+            );
         #endif
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -1529,25 +1311,25 @@ kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(devic
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
     #endif
 
             k += 8;
@@ -1558,7 +1340,7 @@ kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -1566,7 +1348,7 @@ kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -1574,7 +1356,7 @@ kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -1582,7 +1364,7 @@ kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -1590,7 +1372,7 @@ kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -1598,7 +1380,7 @@ kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -1606,7 +1388,7 @@ kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -1614,7 +1396,7 @@ kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #endif
 #endif
@@ -1710,7 +1492,7 @@ kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(devic
     }
 
     {
-    
+
 #if OPTIMIZE && N_DIVIDABLE_BY_64
         device float4 *C4 = (device float4 *)((static_buffer + meta_buffer[2]));
         const int N4 = N >> 2;
@@ -1728,7 +1510,7 @@ kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(devic
 
             C4[m * N4 + n + 0] = result0;
             C4[m * N4 + n + 1] = result1;
-            
+
             m++;
         }
 #else
@@ -1751,61 +1533,46 @@ kernel void sgemm_7b4817c4ac9dfe433720b075aa47e84624573a88bc125170e1038e1b(devic
                     n++;
                 }
             }
-            
+
             m++;
         }
 #endif
 
     }
 
-
 #undef M_DIVIDABLE_BY_64
 #undef N_DIVIDABLE_BY_64
 #undef K_DIVIDABLE_BY_8
-#undef TRANSPOSE_A
-#undef TRANSPOSE_B
 #undef A_STRIDE_K
 #undef B_STRIDE_K
 #undef A_STRIDE_M
-#undef A_STRIDE_M
+#undef B_STRIDE_N
 }
 
 
-kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(device float * static_buffer[[buffer(0)]],
+kernel void tensordot_8d766979cae5f29c01864384bf3bb8b079fcad4e7542a36c6fc3f956(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint index[[thread_index_in_threadgroup]],
                           uint2 group_position[[threadgroup_position_in_grid]])
 {
-#define TRANSPOSE_A 1
-#define TRANSPOSE_B 1
 #define M_DIVIDABLE_BY_64 0
 #define N_DIVIDABLE_BY_64 1
 #define K_DIVIDABLE_BY_8 1
 
-#if TRANSPOSE_A
-    #define A_STRIDE_K 1
-    #define A_STRIDE_M K
-#else
-    #define A_STRIDE_K M
-    #define A_STRIDE_M 1
-#endif
+#define A_STRIDE_K M
+#define A_STRIDE_M 1
 
-#if TRANSPOSE_B
-    #define B_STRIDE_K N
-    #define B_STRIDE_N 1
-#else
-    #define B_STRIDE_K 1
-    #define B_STRIDE_N K
-#endif
+#define B_STRIDE_K N
+#define B_STRIDE_N 1
 
-#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64  && N_DIVIDABLE_BY_64 && !TRANSPOSE_A && TRANSPOSE_B && OPTIMIZE
-    const device float4 *load_target4 = (index & 32) 
-        ? (const device float4 *)((static_buffer + meta_buffer[1])) 
+#if K_DIVIDABLE_BY_8 && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64 && OPTIMIZE
+    const device float4 *load_target4 = (index & 32)
+        ? (const device float4 *)((static_buffer + meta_buffer[1]))
         : (const device float4 *)((static_buffer + meta_buffer[0]));
 #else
-    const device float *load_target = (index & 32) 
-        ? ((static_buffer + meta_buffer[1])) 
+    const device float *load_target = (index & 32)
+        ? ((static_buffer + meta_buffer[1]))
         : ((static_buffer + meta_buffer[0]));
 #endif
 
@@ -1846,7 +1613,7 @@ kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(devic
         {
 #if OPTIMIZE && K_DIVIDABLE_BY_8
     #if OPTIMIZE && M_DIVIDABLE_BY_64 && N_DIVIDABLE_BY_64
-        #if OPTIMIZE && !TRANSPOSE_A && TRANSPOSE_B
+        #if OPTIMIZE
             shared4[shared_offset4 + 32 * 0] = load_target4[track0 >> 2];
             shared4[shared_offset4 + 32 * 2] = load_target4[track2 >> 2];
             shared4[shared_offset4 + 32 * 4] = load_target4[track4 >> 2];
@@ -1857,25 +1624,25 @@ kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(devic
                 load_target[track0 + stride_mn * 1],
                 load_target[track0 + stride_mn * 2],
                 load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 load_target[track2 + stride_mn * 0],
                 load_target[track2 + stride_mn * 1],
                 load_target[track2 + stride_mn * 2],
                 load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 load_target[track4 + stride_mn * 0],
                 load_target[track4 + stride_mn * 1],
                 load_target[track4 + stride_mn * 2],
                 load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 load_target[track6 + stride_mn * 0],
                 load_target[track6 + stride_mn * 1],
                 load_target[track6 + stride_mn * 2],
                 load_target[track6 + stride_mn * 3]
-            ); 
+            );
         #endif
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -1883,25 +1650,25 @@ kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(devic
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 2] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track2 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 4] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track4 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             shared4[shared_offset4 + 32 * 6] = float4(
                 (mn_load_offset + 0 >= max_MN) ? 0 : load_target[track6 + stride_mn * 0],
                 (mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
     #endif
 
             k += 8;
@@ -1912,7 +1679,7 @@ kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -1920,7 +1687,7 @@ kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -1928,7 +1695,7 @@ kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -1936,7 +1703,7 @@ kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(devic
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #else
             shared4[shared_offset4 + 32 * 0] = float4(
@@ -1944,7 +1711,7 @@ kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track0 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track0 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track0 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 2] = float4(
@@ -1952,7 +1719,7 @@ kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track2 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track2 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track2 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 4] = float4(
@@ -1960,7 +1727,7 @@ kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track4 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track4 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track4 + stride_mn * 3]
-            ); 
+            );
             k += 2;
 
             shared4[shared_offset4 + 32 * 6] = float4(
@@ -1968,7 +1735,7 @@ kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(devic
                 (k + k_load_offset >= K || mn_load_offset + 1 >= max_MN) ? 0 : load_target[track6 + stride_mn * 1],
                 (k + k_load_offset >= K || mn_load_offset + 2 >= max_MN) ? 0 : load_target[track6 + stride_mn * 2],
                 (k + k_load_offset >= K || mn_load_offset + 3 >= max_MN) ? 0 : load_target[track6 + stride_mn * 3]
-            ); 
+            );
             k += 2;
     #endif
 #endif
@@ -2064,7 +1831,7 @@ kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(devic
     }
 
     {
-    
+
 #if OPTIMIZE && N_DIVIDABLE_BY_64
         device float4 *C4 = (device float4 *)((static_buffer + meta_buffer[2]));
         const int N4 = N >> 2;
@@ -2082,7 +1849,7 @@ kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(devic
 
             C4[m * N4 + n + 0] = result0;
             C4[m * N4 + n + 1] = result1;
-            
+
             m++;
         }
 #else
@@ -2105,23 +1872,20 @@ kernel void sgemm_38ceab045b96881f2c13581f6f973ec647e3627b5ad6a15d200a3fe6(devic
                     n++;
                 }
             }
-            
+
             m++;
         }
 #endif
 
     }
 
-
 #undef M_DIVIDABLE_BY_64
 #undef N_DIVIDABLE_BY_64
 #undef K_DIVIDABLE_BY_8
-#undef TRANSPOSE_A
-#undef TRANSPOSE_B
 #undef A_STRIDE_K
 #undef B_STRIDE_K
 #undef A_STRIDE_M
-#undef A_STRIDE_M
+#undef B_STRIDE_N
 }
 
 
@@ -2154,7 +1918,7 @@ kernel void elementwiseadd_de265f5f24d651945d05e27082b8e6d7eb254ba11e717ff5410bd
 }
 
 
-kernel void averagepooling2d_e40a36b3a1265ae67e8fac3ce9b75331da5987fb264e9b069187c9c1(device float * static_buffer[[buffer(0)]],
+kernel void averagepooling2d_658cb762a97ad7134e3580a8bd76aacc680cc20968e2b81777940530(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint index[[thread_position_in_grid]],
@@ -2175,7 +1939,7 @@ kernel void averagepooling2d_e40a36b3a1265ae67e8fac3ce9b75331da5987fb264e9b06918
     const int SW = meta_buffer[11];
     const int PH = meta_buffer[12];
     const int PW = meta_buffer[13];
-    
+
     for (int gid = index; gid < N * H2 * W2 * C; gid += num_threads) {
         const int c = gid % C;
         const int w2 = gid / C % W2;
@@ -2183,15 +1947,17 @@ kernel void averagepooling2d_e40a36b3a1265ae67e8fac3ce9b75331da5987fb264e9b06918
         const int n = gid / C / W2 / H2;
 
         float v = 0;
+        
         for (int kh = 0; kh < KH; kh++) {
             const int h1 = h2 * SH - PH + kh;
             if (h1 < 0 || h1 >= H1) continue;
-            
+
             for (int kw = 0; kw < KW; kw++) {
                 const int w1 = w2 * SW - PW + kw;
                 if (w1 < 0 || w1 >= W1) continue;
 
                 v += X[((n * H1 + h1) * W1 + w1) * C + c];
+                
             }
         }
         v /= KH * KW;
@@ -2201,7 +1967,7 @@ kernel void averagepooling2d_e40a36b3a1265ae67e8fac3ce9b75331da5987fb264e9b06918
 }
 
 
-kernel void softmax_19085802eeba7fd293021820114957d9f2a820f7f48816b74c49d271(device float * static_buffer[[buffer(0)]],
+kernel void softmax_c5c1093e2f2f79baae8036b89eb70752cc1a574cf4c28310442568eb(device float * static_buffer[[buffer(0)]],
                           device float * dynamic_buffer[[buffer(1)]],
                           const device int * meta_buffer [[buffer(2)]],
                           uint index[[thread_position_in_grid]],
@@ -2216,7 +1982,7 @@ kernel void softmax_19085802eeba7fd293021820114957d9f2a820f7f48816b74c49d271(dev
     for (int gid = index; gid < D1 * D3; gid += num_threads) {
         const int d3 = gid % D3;
         const int d1 = gid / D3;
-        
+
         float set_max = 0.0f;
         for (int d2 = 0; d2 < D2; d2++) {
             float val = X[(d1 * D2 + d2) * D3 + d3];
@@ -2224,7 +1990,7 @@ kernel void softmax_19085802eeba7fd293021820114957d9f2a820f7f48816b74c49d271(dev
                 set_max = val;
             }
         }
-        
+
         float sum_exp = 0.0f;
         for (int d2 = 0; d2 < D2; d2++) {
             float val = X[(d1 * D2 + d2) * D3 + d3];
@@ -2232,7 +1998,7 @@ kernel void softmax_19085802eeba7fd293021820114957d9f2a820f7f48816b74c49d271(dev
             sum_exp += exp_x;
             Y[(d1 * D2 + d2) * D3 + d3] = exp_x;
         }
-        
+
         for (int d2 = 0; d2 < D2; d2++) {
             Y[(d1 * D2 + d2) * D3 + d3] /= sum_exp;
         }
